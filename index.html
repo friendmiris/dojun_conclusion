@@ -469,20 +469,25 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
 
           {view==="top3" && ranking.length>0 && <>
             {/* 데스크톱/태블릿: 틀 이미지 위에 실제 데이터 오버레이 */}
-            <div className="hidden md:block relative mb-7 pt-3">
-              <img src={siteTexts.top3_frame_url || "top3-cards-only.png"} alt="TOP3" className="w-full h-auto block rounded-2xl" />
-              <div className="absolute inset-0">
+            <div style={{position:"relative"}} className="hidden md:block mb-7 pt-3">
+              <img src={siteTexts.top3_frame_url || "top3-cards-only.png"} alt="TOP3" style={{width:"100%", height:"auto", display:"block", borderRadius:16}} />
+              <div style={{position:"absolute", top:0, left:0, right:0, bottom:0}}>
                 {top3.map((row,i)=>{
-                  const posClass = i===0 ? "left-[38%] w-[24%] top-[2%] h-[92%]" : i===1 ? "left-[12%] w-[25%] top-[10%] h-[80%]" : "left-[63%] w-[25%] top-[10%] h-[80%]";
-                  const padTop = i===0 ? "pt-[42%]" : "pt-[46%]";
+                  const box = i===0
+                    ? { left:"38%", width:"24%", top:"2%", height:"92%", paddingTop:"42%" }
+                    : i===1
+                    ? { left:"12%", width:"25%", top:"10%", height:"80%", paddingTop:"46%" }
+                    : { left:"63%", width:"25%", top:"10%", height:"80%", paddingTop:"46%" };
                   return (
-                    <button key={row.key} onClick={()=>setDetailOwner(row.key)} className={`absolute ${posClass} ${padTop} flex flex-col items-center text-center px-2`}>
+                    <button key={row.key} onClick={()=>setDetailOwner(row.key)}
+                      style={{position:"absolute", left:box.left, width:box.width, top:box.top, height:box.height, paddingTop:box.paddingTop,
+                        display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", paddingLeft:8, paddingRight:8}}>
                       <div className="flex items-center gap-1.5">
                         <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span>
                       </div>
-                      <div style={{color:C.text,fontFamily:"'Nanum Myeongjo', serif",textShadow:"0 2px 6px #00000099"}} className={`font-extrabold leading-tight mt-2 ${i===0?"text-2xl":"text-xl"}`}>{maskName(displayName(row))}</div>
-                      <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY,textShadow:"0 2px 8px #00000099"}} className={`leading-none mt-2.5 ${i===0?"text-4xl":"text-[28px]"}`}>
-                        {row.total}<span style={{color:C.sub,fontFamily:FONT_BODY}} className="text-xs font-semibold ml-1.5">{ROLES[activeRole].metricLabel}</span>
+                      <div style={{color:C.text,fontFamily:"'Nanum Myeongjo', serif",textShadow:"0 2px 6px #00000099",fontWeight:800,lineHeight:1.2,marginTop:8,fontSize:i===0?24:20}}>{maskName(displayName(row))}</div>
+                      <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY,textShadow:"0 2px 8px #00000099",lineHeight:1,marginTop:10,fontSize:i===0?36:28}}>
+                        {row.total}<span style={{color:C.sub,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,marginLeft:6}}>{ROLES[activeRole].metricLabel}</span>
                       </div>
                     </button>
                   );
