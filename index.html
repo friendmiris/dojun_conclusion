@@ -61,9 +61,17 @@ function maskPhone(phone) {
   return phone;
 }
 
-const REGIONS = ["본부", "북구", "광산"];
-const DEPT_KEYS = ["DEPT_A","DEPT_B","DEPT_C","DEPT_D","DEPT_E","DEPT_F","DEPT_G","DEPT_H","DEPT_I"];
-const deptLabel = (k) => k;
+// 지역/부서는 이제 DB(regions/depts 테이블)에서 관리됨. 이 맵들은 App에서 fetch 후 채워짐.
+let REGION_LABEL_MAP = {};
+let DEPT_LABEL_MAP = {};
+const deptLabel = (k) => DEPT_LABEL_MAP[k] || k;
+const regionLabel = (k) => REGION_LABEL_MAP[k] || k;
+function colorForKey(key) {
+  const palette = [C.ink, C.copper, C.amber, C.teal, C.steel, C.danger];
+  let hash = 0;
+  for (let i=0;i<String(key).length;i++) hash = (hash*31 + String(key).charCodeAt(i)) >>> 0;
+  return palette[hash % palette.length];
+}
 
 const inputStyle = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: FONT_BODY };
 
@@ -71,8 +79,8 @@ function Field({ label, children }) {
   return <div><div style={{ color: C.sub }} className="text-xs font-semibold mb-1">{label}</div>{children}</div>;
 }
 function RegionTag({ region }) {
-  const colors = { 본부: C.navy, 북구: C.bronze, 광산: C.emerald };
-  return <span style={{ background: (colors[region]||C.slate)+"1A", color: colors[region]||C.slate }} className="text-[11px] font-bold px-2.5 py-0.5 rounded-full">{region}</span>;
+  const c = colorForKey(region);
+  return <span style={{ background: c+"1A", color: c }} className="text-[11px] font-bold px-2.5 py-0.5 rounded-full">{regionLabel(region)}</span>;
 }
 function EmptyState({ text }) {
   return <div style={{ border: `1px dashed ${C.border}`, color: C.sub }} className="rounded-xl py-8 text-center text-sm">{text}</div>;
@@ -85,6 +93,8 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [labelRows, setLabelRows] = useState(null);
   const [siteTexts, setSiteTexts] = useState(null);
+  const [regionRows, setRegionRows] = useState(null);
+  const [deptRows, setDeptRows] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
 
@@ -107,8 +117,22 @@ function App() {
     (data||[]).forEach(t => map[t.text_key] = t.content);
     setSiteTexts(map);
   };
+  const loadRegions = async () => {
+    const { data } = await supabase.from("regions").select("*").order("sort_order", { ascending: true });
+    const rows = data || [];
+    const map = {}; rows.forEach(r => map[r.region_key] = r.display_name);
+    REGION_LABEL_MAP = map;
+    setRegionRows(rows);
+  };
+  const loadDepts = async () => {
+    const { data } = await supabase.from("depts").select("*").order("sort_order", { ascending: true });
+    const rows = data || [];
+    const map = {}; rows.forEach(d => map[d.dept_key] = d.display_name);
+    DEPT_LABEL_MAP = map;
+    setDeptRows(rows);
+  };
 
-  useEffect(() => { loadSiteTexts(); }, []);
+  useEffect(() => { loadSiteTexts(); loadRegions(); loadDepts(); }, []);
 
   useEffect(() => {
     if (!session) { setProfile(null); setLoading(false); return; }
@@ -123,8 +147,9 @@ function App() {
 
   if (recoveryMode) return <ResetPasswordScreen onDone={() => setRecoveryMode(false)} />;
   if (loading && session) return <div style={{background:C.bg,minHeight:"100vh"}} />;
-  if (!session || !profile) return <AuthScreen siteTexts={siteTexts||{}} />;
-  return <Dashboard profile={profile} labelRows={labelRows||[]} onLabelsChanged={loadLabels} siteTexts={siteTexts||{}} onTextsChanged={loadSiteTexts} />;
+  if (!session || !profile) return <AuthScreen siteTexts={siteTexts||{}} regionRows={regionRows||[]} deptRows={deptRows||[]} />;
+  return <Dashboard profile={profile} labelRows={labelRows||[]} onLabelsChanged={loadLabels} siteTexts={siteTexts||{}} onTextsChanged={loadSiteTexts}
+    regionRows={regionRows||[]} deptRows={deptRows||[]} onRegionsChanged={loadRegions} onDeptsChanged={loadDepts} />;
 }
 
 function ResetPasswordScreen({ onDone }) {
@@ -165,15 +190,15 @@ function ResetPasswordScreen({ onDone }) {
 }
 
 /* ===== 로그인 / 회원가입 ===== */
-function AuthScreen({ siteTexts }) {
+function AuthScreen({ siteTexts, regionRows, deptRows }) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [roleOptions, setRoleOptions] = useState([]);
   const [role, setRole] = useState("");
-  const [region, setRegion] = useState(REGIONS[0]);
-  const [dept, setDept] = useState(DEPT_KEYS[0]);
+  const [region, setRegion] = useState("");
+  const [dept, setDept] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -185,6 +210,12 @@ function AuthScreen({ siteTexts }) {
       if (data && data.length) setRole(data[0].role_key);
     })();
   }, []);
+  useEffect(() => {
+    if (regionRows && regionRows.length && !region) setRegion(regionRows[0].region_key);
+  }, [regionRows]);
+  useEffect(() => {
+    if (deptRows && deptRows.length && !dept) setDept(deptRows[0].dept_key);
+  }, [deptRows]);
 
   const signIn = async () => {
     setError(""); setBusy(true);
@@ -212,7 +243,7 @@ function AuthScreen({ siteTexts }) {
   return (
     <div style={{background:`linear-gradient(180deg, ${C.ink} 0%, #4A2F5C 100%)`,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm">
-        <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "왕의 자리는 당신의 것"} compact imgSrc="poster-login.png" />
+        <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "왕의 자리는 당신의 것"} compact imgSrc={siteTexts.poster_login_url || "poster-login.png"} />
         <div style={{background:C.card}} className="w-full rounded-b-3xl p-7 -mt-2">
           <div style={{background:C.bg}} className="flex gap-1 mb-5 p-1 rounded-full">
             <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?C.ink:"transparent",color:mode==="signin"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">로그인</button>
@@ -224,8 +255,8 @@ function AuthScreen({ siteTexts }) {
             {mode==="signup" && <>
               <Field label="이름"><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} /></Field>
               <Field label="역할"><select value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}>{roleOptions.map(r=><option key={r.role_key} value={r.role_key}>{r.display_name}</option>)}</select></Field>
-              <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
-              <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
+              <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{regionRows.map(r=><option key={r.region_key} value={r.region_key}>{r.display_name}</option>)}</select></Field>
+              <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{deptRows.map(d=><option key={d.dept_key} value={d.dept_key}>{d.display_name}</option>)}</select></Field>
             </>}
             {error && <div style={{color:C.danger}} className="text-xs font-semibold">{error}</div>}
             {notice && <div style={{color:C.teal}} className="text-xs font-semibold">{notice}</div>}
@@ -248,7 +279,7 @@ function AuthScreen({ siteTexts }) {
 }
 
 /* ===== 대시보드 ===== */
-function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChanged }) {
+function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChanged, regionRows, deptRows, onRegionsChanged, onDeptsChanged }) {
   const ROLE_KEYS = useMemo(() => labelRows.map(l => l.role_key), [labelRows]);
   const ROLES = useMemo(() => {
     const out = {};
@@ -264,6 +295,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showTextManager, setShowTextManager] = useState(false);
   const [showStaffManager, setShowStaffManager] = useState(false);
+  const [showRegionDeptManager, setShowRegionDeptManager] = useState(false);
   const [view, setView] = useState("top3");
   const [fetchError, setFetchError] = useState("");
   const [ownerNames, setOwnerNames] = useState({});
@@ -343,7 +375,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
       <div className="max-w-3xl mx-auto px-5 -mt-1 pb-6">
         {/* 포스터 패널: 제목/부제만, 총관리자가 문구 관리에서 수정 가능 */}
         <div className="mt-4 mb-4">
-          <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "역할별로 실적을 등록하고, 실시간 순위로 확인해요."} imgSrc="poster-top3.png" />
+          <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "역할별로 실적을 등록하고, 실시간 순위로 확인해요."} imgSrc={siteTexts.poster_top3_url || "poster-top3.png"} />
         </div>
 
         {/* 카테고리 알약: 포스터 바깥으로 */}
@@ -368,6 +400,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
             <button onClick={()=>setShowCategoryManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`,background:C.card}} className="text-[11px] font-bold px-3 py-1.5 rounded-full">⚙ 카테고리 관리</button>
             <button onClick={()=>setShowTextManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`,background:C.card}} className="text-[11px] font-bold px-3 py-1.5 rounded-full">✏️ 문구 관리</button>
             <button onClick={()=>setShowStaffManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`,background:C.card}} className="text-[11px] font-bold px-3 py-1.5 rounded-full">👤 직원 관리</button>
+            <button onClick={()=>setShowRegionDeptManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`,background:C.card}} className="text-[11px] font-bold px-3 py-1.5 rounded-full">🗺 지역/부서 관리</button>
           </div>
         )}
         {activeRole && ROLES[activeRole] && <>
@@ -422,11 +455,12 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           onChanged={()=>setRefreshKey(k=>k+1)}
         />
       )}
-      {showForm && <EntryForm profile={profile} roles={ROLES} onClose={()=>setShowForm(false)} onSubmitted={()=>setShowForm(false)} />}
+      {showForm && <EntryForm profile={profile} roles={ROLES} regionRows={regionRows} deptRows={deptRows} onClose={()=>setShowForm(false)} onSubmitted={()=>setShowForm(false)} />}
       {showBulk && <BulkEntryForm roles={ROLES} onClose={()=>setShowBulk(false)} onSaved={()=>setRefreshKey(k=>k+1)} />}
       {showCategoryManager && <CategoryManager labelRows={labelRows} onClose={()=>setShowCategoryManager(false)} onChanged={onLabelsChanged} />}
       {showTextManager && <SiteTextManager siteTexts={siteTexts} onClose={()=>setShowTextManager(false)} onChanged={onTextsChanged} />}
-      {showStaffManager && <StaffManager roles={ROLES} onClose={()=>setShowStaffManager(false)} />}
+      {showStaffManager && <StaffManager roles={ROLES} regionRows={regionRows} deptRows={deptRows} onClose={()=>setShowStaffManager(false)} />}
+      {showRegionDeptManager && <RegionDeptManager regionRows={regionRows} deptRows={deptRows} onClose={()=>setShowRegionDeptManager(false)} onRegionsChanged={onRegionsChanged} onDeptsChanged={onDeptsChanged} />}
     </div>
   );
 }
@@ -435,8 +469,11 @@ function MarqueeBar({ text }) {
   const t = text || "👑 이달의 실적왕은 누구? · 지금 바로 확인하기 · 순위는 실시간으로 반영돼요 · ";
   return (
     <div style={{background:`linear-gradient(90deg, ${C.amber}, ${C.steel})`}} className="overflow-hidden whitespace-nowrap py-1.5">
-      <div className="inline-block" style={{animation:"marquee 22s linear infinite"}}>
-        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2">{t.repeat(4)}</span>
+      <div className="inline-flex" style={{animation:"marquee 22s linear infinite"}}>
+        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
       </div>
       <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
@@ -754,7 +791,7 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
   );
 }
 
-function StaffManager({ roles, onClose }) {
+function StaffManager({ roles, regionRows, deptRows, onClose }) {
   const [rows, setRows] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState("");
@@ -817,12 +854,12 @@ function StaffManager({ roles, onClose }) {
                   </Field>
                   <Field label="지역">
                     <select value={row.region||""} onChange={e=>update(row.id,"region",e.target.value)} style={inputStyle}>
-                      {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                      {regionRows.map(r => <option key={r.region_key} value={r.region_key}>{r.display_name}</option>)}
                     </select>
                   </Field>
                   <Field label="부서">
                     <select value={row.dept||""} onChange={e=>update(row.id,"dept",e.target.value)} style={inputStyle}>
-                      {DEPT_KEYS.map(d => <option key={d} value={d}>{d}</option>)}
+                      {deptRows.map(d => <option key={d.dept_key} value={d.dept_key}>{d.display_name}</option>)}
                     </select>
                   </Field>
                 </div>
@@ -845,6 +882,7 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
   const [heroSubtitle, setHeroSubtitle] = useState(siteTexts.hero_subtitle || "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [uploadingKey, setUploadingKey] = useState(null);
 
   const save = async () => {
     setBusy(true); setMsg("");
@@ -860,14 +898,45 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
     onChanged();
   };
 
+  const uploadPoster = async (file, textKey) => {
+    if (!file) return;
+    setUploadingKey(textKey); setMsg("");
+    const path = `${textKey}-${Date.now()}.${file.name.split(".").pop()}`;
+    const { error: upErr } = await supabase.storage.from("site-assets").upload(path, file, { upsert: true });
+    if (upErr) { setUploadingKey(null); setMsg("업로드 실패: " + upErr.message); return; }
+    const { data: pub } = supabase.storage.from("site-assets").getPublicUrl(path);
+    const { error: dbErr } = await supabase.from("site_texts").upsert(
+      [{ text_key: textKey, content: pub.publicUrl }], { onConflict: "text_key" }
+    );
+    setUploadingKey(null);
+    if (dbErr) { setMsg("저장 실패: " + dbErr.message); return; }
+    setMsg("✅ 이미지 교체 완료! 모든 직원 화면에 바로 반영돼요.");
+    onChanged();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
-      <div style={{background:C.card}} className="w-full max-w-md rounded-t-3xl md:rounded-3xl p-6">
+      <div style={{background:C.card}} className="w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">문구 관리</div>
           <button onClick={onClose}>✕</button>
         </div>
         <p style={{color:C.sub}} className="text-xs mb-4">여기서 수정하면 모든 직원의 화면에 바로 반영돼요.</p>
+
+        <div style={{border:`1px solid ${C.border}`}} className="rounded-2xl p-4 mb-4">
+          <div style={{color:C.ink}} className="text-sm font-bold mb-3">포스터 이미지</div>
+          <div className="flex flex-col gap-3">
+            <Field label="로그인 화면 포스터">
+              <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "poster_login_url")} disabled={uploadingKey==="poster_login_url"} />
+              {uploadingKey==="poster_login_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">업로드 중...</div>}
+            </Field>
+            <Field label="로그인 후 메인 포스터">
+              <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "poster_top3_url")} disabled={uploadingKey==="poster_top3_url"} />
+              {uploadingKey==="poster_top3_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">업로드 중...</div>}
+            </Field>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-3">
           <Field label="맨 위 움직이는 배너 문구">
             <textarea value={marquee} onChange={e=>setMarquee(e.target.value)} rows={2} style={inputStyle} />
@@ -879,7 +948,97 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
             <input value={heroSubtitle} onChange={e=>setHeroSubtitle(e.target.value)} style={inputStyle} />
           </Field>
           {msg && <div style={{color: msg.includes("실패")?C.danger:C.teal}} className="text-xs font-semibold">{msg}</div>}
-          <button onClick={save} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-full mt-1">{busy?"저장 중...":"저장하기"}</button>
+          <button onClick={save} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-full mt-1">{busy?"저장 중...":"문구 저장하기"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegionDeptManager({ regionRows, deptRows, onClose, onRegionsChanged, onDeptsChanged }) {
+  const [tab, setTab] = useState("region");
+  const [regions, setRegions] = useState(regionRows);
+  const [depts, setDepts] = useState(deptRows);
+  const [newKey, setNewKey] = useState("");
+  const [newName, setNewName] = useState("");
+  const [busyKey, setBusyKey] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  const isRegion = tab === "region";
+  const rows = isRegion ? regions : depts;
+  const setRows = isRegion ? setRegions : setDepts;
+  const table = isRegion ? "regions" : "depts";
+  const keyField = isRegion ? "region_key" : "dept_key";
+  const onChanged = isRegion ? onRegionsChanged : onDeptsChanged;
+
+  const update = (key, field, value) => {
+    setRows(prev => prev.map(r => r[keyField] === key ? { ...r, [field]: value } : r));
+  };
+
+  const saveRow = async (row) => {
+    setBusyKey(row[keyField]); setMsg("");
+    const { error } = await supabase.from(table).update({ display_name: row.display_name }).eq(keyField, row[keyField]);
+    setBusyKey(null);
+    if (error) { setMsg("저장 실패: " + error.message); return; }
+    setMsg("✅ 저장했어요.");
+    onChanged();
+  };
+
+  const deleteRow = async (key) => {
+    if (!window.confirm("삭제할까요? 이미 등록된 기록의 값은 그대로 남지만, 목록에서는 더 이상 선택할 수 없어요.")) return;
+    setBusyKey(key); setMsg("");
+    const { error } = await supabase.from(table).delete().eq(keyField, key);
+    setBusyKey(null);
+    if (error) { setMsg("삭제 실패: " + error.message); return; }
+    setRows(prev => prev.filter(r => r[keyField] !== key));
+    onChanged();
+  };
+
+  const addRow = async () => {
+    if (!newKey || !newName) { setMsg("값과 이름을 입력해주세요."); return; }
+    const sort_order = rows.length ? Math.max(...rows.map(r=>r.sort_order||0)) + 1 : 1;
+    setBusyKey("__new__"); setMsg("");
+    const { error } = await supabase.from(table).insert({ [keyField]: newKey, display_name: newName, sort_order });
+    setBusyKey(null);
+    if (error) { setMsg("추가 실패: " + error.message); return; }
+    setNewKey(""); setNewName("");
+    onChanged();
+    const { data } = await supabase.from(table).select("*").order("sort_order", { ascending: true });
+    setRows(data || []);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
+      <div style={{background:C.card}} className="w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">지역/부서 관리</div>
+          <button onClick={onClose}>✕</button>
+        </div>
+        <div style={{background:C.bg}} className="flex gap-1 mb-4 p-1 rounded-full">
+          <button onClick={()=>setTab("region")} style={{background:tab==="region"?C.ink:"transparent",color:tab==="region"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">지역</button>
+          <button onClick={()=>setTab("dept")} style={{background:tab==="dept"?C.ink:"transparent",color:tab==="dept"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">부서</button>
+        </div>
+        <p style={{color:C.sub}} className="text-xs mb-4">이름을 바꾸면 이미 등록된 기록에도 바로 반영돼요 (내부 값은 그대로, 표시 이름만 바뀌는 방식).</p>
+
+        <div className="flex flex-col gap-3 mb-5">
+          {rows.map(row => (
+            <div key={row[keyField]} style={{border:`1px solid ${C.border}`}} className="rounded-xl p-3 flex items-center gap-2">
+              <div style={{color:C.sub}} className="text-[10px] font-bold w-20 flex-shrink-0 truncate">{row[keyField]}</div>
+              <input value={row.display_name} onChange={e=>update(row[keyField],"display_name",e.target.value)} style={{...inputStyle, padding:"6px 10px"}} />
+              <button onClick={()=>saveRow(row)} disabled={busyKey===row[keyField]} style={{background:C.amber,color:C.ink}} className="text-[11px] font-bold px-3 py-2 rounded-full flex-shrink-0">저장</button>
+              <button onClick={()=>deleteRow(row[keyField])} disabled={busyKey===row[keyField]} style={{color:C.danger}} className="text-[11px] font-bold px-2 flex-shrink-0">삭제</button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{border:`1px dashed ${C.border}`}} className="rounded-2xl p-4">
+          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-sm mb-3">＋ {isRegion?"지역":"부서"} 추가</div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <Field label="내부 값 (영문/코드 권장)"><input value={newKey} onChange={e=>setNewKey(e.target.value)} placeholder={isRegion?"예: 강남":"예: DEPT_J"} style={inputStyle} /></Field>
+            <Field label="표시 이름"><input value={newName} onChange={e=>setNewName(e.target.value)} placeholder={isRegion?"예: 강남지사":"예: 3팀"} style={inputStyle} /></Field>
+          </div>
+          {msg && <div style={{color: msg.includes("실패")?C.danger:C.teal}} className="text-xs font-semibold mt-1">{msg}</div>}
+          <button onClick={addRow} disabled={busyKey==="__new__"} style={{background:C.ink}} className="w-full text-white text-sm font-bold py-2.5 rounded-full mt-2">추가하기</button>
         </div>
       </div>
     </div>
@@ -985,9 +1144,9 @@ function CategoryManager({ labelRows, onClose, onChanged }) {
   );
 }
 
-function EntryForm({ profile, roles, onClose, onSubmitted }) {
-  const [dept, setDept] = useState(profile.dept || DEPT_KEYS[0]);
-  const [region, setRegion] = useState(profile.region || REGIONS[0]);
+function EntryForm({ profile, roles, regionRows, deptRows, onClose, onSubmitted }) {
+  const [dept, setDept] = useState(profile.dept || (deptRows[0] && deptRows[0].dept_key) || "");
+  const [region, setRegion] = useState(profile.region || (regionRows[0] && regionRows[0].region_key) || "");
   const [targetName, setTargetName] = useState("");
   const [phone, setPhone] = useState("");
   const [metric, setMetric] = useState("");
@@ -1019,8 +1178,8 @@ function EntryForm({ profile, roles, onClose, onSubmitted }) {
           <button onClick={onClose}>✕</button>
         </div>
         <div className="flex flex-col gap-3">
-          <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
-          <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
+          <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{regionRows.map(r=><option key={r.region_key} value={r.region_key}>{r.display_name}</option>)}</select></Field>
+          <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{deptRows.map(d=><option key={d.dept_key} value={d.dept_key}>{d.display_name}</option>)}</select></Field>
           <Field label="본인 이름"><input value={profile.name} disabled style={{...inputStyle,color:C.sub,background:C.bg}} /></Field>
           <Field label="프루트 이름"><input value={targetName} onChange={e=>setTargetName(e.target.value)} style={inputStyle} /></Field>
           <Field label="번호"><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} /></Field>
