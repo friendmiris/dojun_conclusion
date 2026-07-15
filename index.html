@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>누가 왕이 될 상인가</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 <script src="https://cdn.tailwindcss.com"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -27,22 +27,23 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ===== 팔레트 ===== */
 const C = {
-  ink: "#2E1F3D", inkSoft: "#4A3A5C", inkLine: "#5C4A70",
-  amber: "#FF6FA0", amberSoft: "#FFE1EC", amberLine: "#FFC2D9",
-  teal: "#59B6A8", tealSoft: "#DFF6F1",
-  steel: "#B9A6FF", steelSoft: "#EFE9FF",
-  copper: "#59D6A0", copperSoft: "#DFFBEE",
-  bg: "#FFF1F6", card: "#FFFFFF",
-  text: "#2E1F3D", sub: "#8A7A99", border: "#F5E1EC",
+  ink: "#0B1020", inkSoft: "#151225", inkLine: "#3A2A16",
+  amber: "#C99A3D", amberSoft: "#2A1F0C", amberLine: "#E7C676",
+  teal: "#76151B", tealSoft: "#1C1210",
+  steel: "#8C97B8", steelSoft: "#161A26",
+  copper: "#B0692E", copperSoft: "#241611",
+  bg: "#070912", card: "#110E0C",
+  text: "#F3E6C5", sub: "#BFA978", border: "#3A2A16",
   danger: "#E5484D",
-  // 기존 코드 전체에서 쓰던 이름들을 새 팔레트로 매핑 (남색->플럼, 에메랄드->핑크, 금/은/동->핑크/라벤더/민트)
-  navy: "#2E1F3D", slate: "#4A3A5C",
-  emerald: "#FF6FA0", emeraldSoft: "#FFE1EC",
-  gold: "#FF6FA0", goldSoft: "#FFE1EC",
-  silver: "#B9A6FF", silverSoft: "#EFE9FF",
-  bronze: "#59D6A0", bronzeSoft: "#DFFBEE",
+  // 기존 코드 전체에서 쓰던 이름들을 새 팔레트로 매핑
+  navy: "#0B1020", slate: "#151225",
+  emerald: "#C99A3D", emeraldSoft: "#2A1F0C",
+  gold: "#C99A3D", goldSoft: "#2A1F0C",
+  silver: "#8C97B8", silverSoft: "#161A26",
+  bronze: "#B0692E", bronzeSoft: "#241611",
+  wine: "#4A090D", wineBright: "#76151B", goldBright: "#E7C676", hanji: "#E8D5AC",
 };
-const FONT_DISPLAY = "'Black Han Sans', 'Pretendard Variable', 'Pretendard', sans-serif";
+const FONT_DISPLAY = "'Black Han Sans', 'Nanum Myeongjo', 'Pretendard Variable', 'Pretendard', sans-serif";
 const FONT_BODY = "'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif";
 
 /* ===== 마스킹 ===== */
@@ -67,13 +68,13 @@ let DEPT_LABEL_MAP = {};
 const deptLabel = (k) => DEPT_LABEL_MAP[k] || k;
 const regionLabel = (k) => REGION_LABEL_MAP[k] || k;
 function colorForKey(key) {
-  const palette = [C.ink, C.copper, C.amber, C.teal, C.steel, C.danger];
+  const palette = [C.amber, C.copper, C.steel, C.goldBright, C.danger];
   let hash = 0;
   for (let i=0;i<String(key).length;i++) hash = (hash*31 + String(key).charCodeAt(i)) >>> 0;
   return palette[hash % palette.length];
 }
 
-const inputStyle = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: FONT_BODY };
+const inputStyle = { width: "100%", border: `1px solid ${C.amberLine}55`, borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: FONT_BODY, background: C.hanji, color: "#3A2A16" };
 
 function Field({ label, children }) {
   return <div><div style={{ color: C.sub }} className="text-xs font-semibold mb-1">{label}</div>{children}</div>;
@@ -168,20 +169,20 @@ function ResetPasswordScreen({ onDone }) {
   };
 
   return (
-    <div style={{background:C.ink,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5">
-      <div style={{background:C.card}} className="w-full max-w-sm rounded-2xl p-6">
-        <div className="text-lg font-extrabold mb-1" style={{color:C.navy}}>새 비밀번호 설정</div>
+    <div style={{background:`linear-gradient(180deg, ${C.bg} 0%, ${C.ink} 100%)`,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5">
+      <div style={{background:C.card, border:`1px solid ${C.amberLine}55`}} className="w-full max-w-sm rounded-2xl p-6">
+        <div className="text-lg font-extrabold mb-1" style={{color:C.text,fontFamily:FONT_DISPLAY}}>새 비밀번호 설정</div>
         <p style={{color:C.sub}} className="text-xs mb-5">새로 쓸 비밀번호를 입력해주세요.</p>
         <div className="flex flex-col gap-3">
           <Field label="새 비밀번호"><input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={inputStyle} /></Field>
-          {error && <div style={{color:"#C23B3B"}} className="text-xs font-semibold">{error}</div>}
+          {error && <div style={{color:C.danger}} className="text-xs font-semibold">{error}</div>}
           {notice ? (
             <>
-              <div style={{color:C.emerald}} className="text-xs font-semibold">{notice}</div>
-              <button onClick={onDone} style={{background:C.navy}} className="text-white font-bold py-3 rounded-xl mt-1">로그인 화면으로</button>
+              <div style={{color:C.goldBright}} className="text-xs font-semibold">{notice}</div>
+              <button onClick={onDone} style={{background:`linear-gradient(135deg, ${C.wineBright}, ${C.wine})`,color:C.goldBright,border:`1px solid ${C.amberLine}`}} className="font-bold py-3 rounded-xl mt-1">로그인 화면으로</button>
             </>
           ) : (
-            <button onClick={save} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-1">{busy?"저장 중...":"비밀번호 저장"}</button>
+            <button onClick={save} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-xl mt-1">{busy?"저장 중...":"비밀번호 저장"}</button>
           )}
         </div>
       </div>
@@ -241,13 +242,13 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
   };
 
   return (
-    <div style={{background:`linear-gradient(180deg, ${C.ink} 0%, #4A2F5C 100%)`,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5 py-10">
+    <div style={{background:`radial-gradient(circle at 20% 80%, ${C.wine}33 0%, transparent 45%), radial-gradient(circle at 80% 75%, ${C.amber}22 0%, transparent 40%), linear-gradient(180deg, ${C.bg} 0%, ${C.ink} 55%, #050307 100%)`,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm">
         <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "왕의 자리는 당신의 것"} compact imgSrc={siteTexts.poster_login_url || "poster-login.png"} />
-        <div style={{background:C.card}} className="w-full rounded-b-3xl p-7 -mt-2">
-          <div style={{background:C.bg}} className="flex gap-1 mb-5 p-1 rounded-full">
-            <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?C.ink:"transparent",color:mode==="signin"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">로그인</button>
-            <button onClick={()=>setMode("signup")} style={{background:mode==="signup"?C.ink:"transparent",color:mode==="signup"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">회원가입</button>
+        <div style={{background:`linear-gradient(180deg, ${C.card}, #0A0705)`, border:`1px solid ${C.amberLine}55`, borderTop:"none", boxShadow:`0 20px 50px #00000088`}} className="w-full rounded-b-3xl p-7 -mt-2">
+          <div style={{background:"#000000", border:`1px solid ${C.amberLine}33`}} className="flex gap-1 mb-5 p-1 rounded-full">
+            <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?`linear-gradient(135deg, ${C.wineBright}, ${C.wine})`:"transparent",color:mode==="signin"?C.goldBright:C.sub,border:mode==="signin"?`1px solid ${C.amberLine}88`:"1px solid transparent"}} className="flex-1 py-2 rounded-full text-sm font-bold">로그인</button>
+            <button onClick={()=>setMode("signup")} style={{background:mode==="signup"?`linear-gradient(135deg, ${C.wineBright}, ${C.wine})`:"transparent",color:mode==="signup"?C.goldBright:C.sub,border:mode==="signup"?`1px solid ${C.amberLine}88`:"1px solid transparent"}} className="flex-1 py-2 rounded-full text-sm font-bold">회원가입</button>
           </div>
           <div className="flex flex-col gap-3">
             <Field label="이메일"><input value={email} onChange={e=>setEmail(e.target.value)} style={inputStyle} placeholder="you@example.com" /></Field>
@@ -259,8 +260,10 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
               <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{deptRows.map(d=><option key={d.dept_key} value={d.dept_key}>{d.display_name}</option>)}</select></Field>
             </>}
             {error && <div style={{color:C.danger}} className="text-xs font-semibold">{error}</div>}
-            {notice && <div style={{color:C.teal}} className="text-xs font-semibold">{notice}</div>}
-            <button onClick={mode==="signin"?signIn:signUp} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-full mt-1">
+            {notice && <div style={{color:C.goldBright}} className="text-xs font-semibold">{notice}</div>}
+            <button onClick={mode==="signin"?signIn:signUp} disabled={busy}
+              style={{background:`linear-gradient(135deg, ${C.wineBright}, ${C.wine})`, color:C.goldBright, border:`1px solid ${C.amberLine}`, boxShadow:`0 0 0px ${C.amber}00`}}
+              className="royal-btn font-bold py-3 rounded-full mt-1 transition-shadow">
               {busy ? "처리 중..." : mode==="signin" ? "로그인" : "가입하기"}
             </button>
             {mode==="signin" && (
@@ -269,11 +272,12 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
               </button>
             )}
           </div>
-          <div style={{color:C.sub,background:C.bg}} className="text-[11px] rounded-lg px-3 py-2 mt-4">
-            총관리자 계정은 일반 가입 후 총관리자가 직접 권한을 바꿔줘야 해요.
+          <div style={{color:C.sub,background:"#00000066",border:`1px solid ${C.amberLine}33`}} className="text-[11px] rounded-lg px-3 py-2 mt-4 flex items-center gap-1.5">
+            <span>🛡️</span><span>총관리자 계정은 일반 가입 후 총관리자가 직접 권한을 바꿔줘야 해요.</span>
           </div>
         </div>
       </div>
+      <style>{`.royal-btn:hover{box-shadow:0 0 18px ${C.amber}99, 0 0 4px ${C.goldBright}66 !important;}`}</style>
     </div>
   );
 }
@@ -354,29 +358,29 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
   const logout = () => supabase.auth.signOut();
 
   return (
-    <div style={{background:`linear-gradient(180deg, ${C.bg} 0%, #F4EEFF 100%)`,minHeight:"100vh",fontFamily:FONT_BODY,color:C.text}}>
+    <div style={{background:`radial-gradient(circle at 15% 10%, ${C.wine}22 0%, transparent 35%), radial-gradient(circle at 85% 20%, ${C.amber}18 0%, transparent 30%), linear-gradient(180deg, ${C.bg} 0%, ${C.ink} 100%)`,minHeight:"100vh",fontFamily:FONT_BODY,color:C.text}}>
       <MarqueeBar text={siteTexts.marquee_text} />
 
-      <div style={{background:`linear-gradient(135deg, ${C.ink} 0%, #4A2F5C 100%)`}} className="px-5 pt-4 pb-4">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
+      <div style={{background:`linear-gradient(135deg, ${C.ink} 0%, ${C.wine} 100%)`, borderBottom:`1px solid ${C.amberLine}55`}} className="px-5 pt-4 pb-4">
+        <div className="flex items-center justify-between max-w-[1280px] mx-auto">
           <div className="flex items-center gap-2.5">
             <LogoMark />
             <div>
-              <div style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-base leading-none">{siteTexts.hero_title || "누가 왕이 될 상인가"}</div>
-              <div style={{color:"#C4B3D6"}} className="text-[11px] mt-1">
+              <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY}} className="text-base leading-none">{siteTexts.hero_title || "누가 왕이 될 상인가"}</div>
+              <div style={{color:C.sub}} className="text-[11px] mt-1">
                 {isAdmin ? "총관리자" : `${ROLES[profile.role]?.label||""} · ${maskName(profile.name)}`}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!isAdmin && <button onClick={()=>setShowForm(true)} style={{background:C.amber,color:C.ink}} className="flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-full">＋ 실적 등록</button>}
-            {isAdmin && <button onClick={()=>setShowBulk(true)} style={{background:C.amber,color:C.ink}} className="flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-full">📋 일괄 등록</button>}
-            <button onClick={logout} style={{color:"#C4B3D6",border:`1px solid ${C.inkLine}`}} className="text-xs px-3 py-2 rounded-full">로그아웃</button>
+            {!isAdmin && <button onClick={()=>setShowForm(true)} style={{background:`linear-gradient(135deg, ${C.goldBright}, ${C.amber})`,color:C.ink,border:`1px solid ${C.amberLine}`}} className="flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-full">＋ 실적 등록</button>}
+            {isAdmin && <button onClick={()=>setShowBulk(true)} style={{background:`linear-gradient(135deg, ${C.goldBright}, ${C.amber})`,color:C.ink,border:`1px solid ${C.amberLine}`}} className="flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-full">📋 일괄 등록</button>}
+            <button onClick={logout} style={{color:C.sub,border:`1px solid ${C.amberLine}55`,background:"#00000044"}} className="text-xs px-3 py-2 rounded-full">로그아웃</button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-5 -mt-1 pb-6">
+      <div className="max-w-[1280px] mx-auto px-5 -mt-1 pb-6">
         {/* 포스터 패널: 제목/부제만, 총관리자가 문구 관리에서 수정 가능 */}
         <div className="mt-4 mb-4">
           <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "역할별로 실적을 등록하고, 실시간 순위로 확인해요."} imgSrc={siteTexts.poster_top3_url || "poster-top3.png"} />
@@ -388,12 +392,14 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
         ) : (
           <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
             {ROLE_KEYS.map((r,i) => {
-              const tone = [C.amber, C.steel, C.copper, C.teal][i % 4];
-              const toneSoft = [C.amberSoft, C.steelSoft, C.copperSoft, C.tealSoft][i % 4];
               const active = activeRole === r;
               return (
                 <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}}
-                  style={{background:active?tone:toneSoft, color:active?"#fff":C.ink, border:`1px solid ${active?tone:C.border}`}}
+                  style={{
+                    background: active ? `linear-gradient(135deg, ${C.wineBright}, ${C.wine})` : C.ink,
+                    color: active ? C.goldBright : C.sub,
+                    border: `1px solid ${active ? C.amberLine : C.border}`,
+                  }}
                   className="text-[13px] font-bold px-4 py-2 rounded-full">{ROLES[r].label}</button>
               );
             })}
@@ -411,10 +417,10 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           {!isAdmin && (
             <div style={{background:C.tealSoft,border:`1px solid ${C.teal}22`}} className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
               <span>🔒</span>
-              <span style={{color:C.ink}} className="text-xs">본인이 등록한 기록만 상세 조회할 수 있어요. 다른 사람의 상세 기록은 총관리자만 볼 수 있습니다.</span>
+              <span style={{color:C.text}} className="text-xs">본인이 등록한 기록만 상세 조회할 수 있어요. 다른 사람의 상세 기록은 총관리자만 볼 수 있습니다.</span>
             </div>
           )}
-          {fetchError && <div style={{background:"#FDEDED",color:C.danger}} className="rounded-xl px-4 py-3 mb-5 text-xs">{fetchError}</div>}
+          {fetchError && <div style={{background:`${C.danger}22`,color:C.danger,border:`1px solid ${C.danger}55`}} className="rounded-xl px-4 py-3 mb-5 text-xs">{fetchError}</div>}
 
           <div className="flex items-center justify-between mb-1.5">
             <div style={{color:C.teal,fontFamily:FONT_DISPLAY}} className="text-[11px] font-bold tracking-wide">{ROLES[activeRole].label.toUpperCase()} · 2026.07</div>
@@ -423,22 +429,28 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
               <button onClick={()=>setView("all")} className="text-[11px] font-bold px-3 py-1.5 rounded-full" style={{background:view==="all"?C.ink:"transparent",color:view==="all"?"#fff":C.sub}}>전체 순위</button>
             </div>
           </div>
-          <h2 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-2xl mb-5">
+          <h2 style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-2xl mb-5">
             {ROLES[activeRole].metricLabel} {view==="top3" ? `TOP ${Math.min(3,top3.length)}` : `전체 ${ranking.length}명`}
           </h2>
 
           {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
 
           {view==="top3" && ranking.length>0 && <>
-            <div className="flex flex-col gap-2.5 mb-7">
-              {top3.map((row,i)=>(
-                <ScoreRow key={row.key} rank={i+1} row={row} name={maskName(displayName(row))}
-                  metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
-                  big={i===0} onClick={()=>setDetailOwner(row.key)} />
-              ))}
+            <div className="flex flex-col md:flex-row md:items-stretch gap-3 md:gap-4 mb-7 justify-center">
+              {top3.map((row,i)=>{
+                const orderClass = i===0 ? "order-1 md:order-2" : i===1 ? "order-2 md:order-1" : "order-3 md:order-3";
+                const widthClass = i===0 ? "md:flex-[1.15]" : "md:flex-1";
+                return (
+                  <div key={row.key} className={`${orderClass} ${widthClass}`}>
+                    <ScoreRow rank={i+1} row={row} name={maskName(displayName(row))}
+                      metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
+                      big={i===0} onClick={()=>setDetailOwner(row.key)} />
+                  </div>
+                );
+              })}
             </div>
             {rest.length>0 && <>
-              <h3 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xs font-bold mb-3 tracking-wide">4 – {ranking.length}위</h3>
+              <h3 style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xs font-bold mb-3 tracking-wide">4 – {ranking.length}위</h3>
               <RankList rows={rest} startRank={4} displayName={displayName} onSelect={setDetailOwner} maxValue={top3[0].total || 1} />
             </>}
           </>}
@@ -477,12 +489,12 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
 function MarqueeBar({ text }) {
   const t = text || "👑 이달의 실적왕은 누구? · 지금 바로 확인하기 · 순위는 실시간으로 반영돼요 · ";
   return (
-    <div style={{background:`linear-gradient(90deg, ${C.amber}, ${C.steel})`}} className="overflow-hidden whitespace-nowrap py-1.5">
+    <div style={{background:`linear-gradient(90deg, ${C.wine}, ${C.ink})`, borderBottom:`1px solid ${C.amberLine}44`}} className="overflow-hidden whitespace-nowrap py-1.5">
       <div className="inline-flex" style={{animation:"marquee 22s linear infinite"}}>
-        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
-        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
-        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
-        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:C.amberLine,fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:C.amberLine,fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:C.amberLine,fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
+        <span style={{color:C.amberLine,fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2 flex-shrink-0">{t}</span>
       </div>
       <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
@@ -492,10 +504,15 @@ function MarqueeBar({ text }) {
 function PosterPanel({ title, subtitle, compact, imgSrc }) {
   if (imgSrc) {
     return (
-      <div className={`relative overflow-hidden ${compact ? "rounded-t-3xl" : "rounded-3xl"}`}>
-        <img src={imgSrc} alt={title} className="w-full h-auto block" onError={(e)=>{e.target.style.display="none"; e.target.nextSibling.style.display="block";}} />
-        <div style={{display:"none"}}>
-          <PosterPanelText title={title} subtitle={subtitle} compact={compact} />
+      <div style={{background:`linear-gradient(135deg, ${C.goldBright}, ${C.amber} 40%, ${C.wine} 100%)`, boxShadow:`0 0 40px ${C.amber}33, 0 20px 40px #00000066`}}
+        className={`p-[3px] ${compact ? "rounded-t-3xl" : "rounded-3xl"}`}>
+        <div style={{background:C.ink}} className={`p-1.5 ${compact ? "rounded-t-[22px]" : "rounded-[22px]"}`}>
+          <div style={{border:`1px solid ${C.amberLine}88`}} className="relative overflow-hidden rounded-2xl">
+            <img src={imgSrc} alt={title} className="w-full h-auto block" onError={(e)=>{e.target.style.display="none"; e.target.nextSibling.style.display="block";}} />
+            <div style={{display:"none"}}>
+              <PosterPanelText title={title} subtitle={subtitle} compact={compact} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -504,17 +521,17 @@ function PosterPanel({ title, subtitle, compact, imgSrc }) {
 }
 function PosterPanelText({ title, subtitle, compact }) {
   return (
-    <div style={{background:"linear-gradient(160deg, #FFF6E9, #FDEAD2)", border:"1px solid #E9C98F"}}
+    <div style={{background:`linear-gradient(160deg, ${C.card}, ${C.ink})`, border:`1px solid ${C.amberLine}66`, boxShadow:`0 0 30px ${C.amber}22`}}
       className={`relative overflow-hidden px-6 text-center ${compact ? "pt-7 pb-8 rounded-t-3xl" : "pt-10 pb-9 rounded-3xl"}`}>
       <CornerOrnament className="absolute top-3 left-3" />
       <CornerOrnament className="absolute top-3 right-3" flip="x" />
       <CornerOrnament className="absolute bottom-3 left-3" flip="y" />
       <CornerOrnament className="absolute bottom-3 right-3" flip="xy" />
       <div style={{fontSize:compact?26:32}} className="mb-1">👑</div>
-      <h1 style={{color:"#7A2E2E",fontFamily:FONT_DISPLAY}} className={compact?"text-2xl leading-snug":"text-3xl leading-snug"}>
-        <span style={{color:"#C9A227"}}>〈</span> {title} <span style={{color:"#C9A227"}}>〉</span>
+      <h1 style={{color:C.goldBright,fontFamily:FONT_DISPLAY}} className={compact?"text-2xl leading-snug":"text-3xl leading-snug"}>
+        <span style={{color:C.amber}}>〈</span> {title} <span style={{color:C.amber}}>〉</span>
       </h1>
-      {subtitle && <p style={{color:"#9C7A3C"}} className="text-[12px] mt-2">◈ {subtitle}</p>}
+      {subtitle && <p style={{color:C.sub}} className="text-[12px] mt-2">◈ {subtitle}</p>}
     </div>
   );
 }
@@ -532,22 +549,33 @@ function LogoMark() {
 }
 
 function ScoreRow({ rank, row, name, metricLabel, maxValue, big, onClick }) {
-  const tone = rank===1 ? { bar:C.amber, chip:C.amber, chipText:C.ink } : rank===2 ? { bar:C.steel, chip:C.steelSoft, chipText:C.text } : { bar:C.copper, chip:C.copperSoft, chipText:C.text };
+  const tone = rank===1
+    ? { bar:C.amber, chip:C.amber, chipText:C.ink, edge:C.amberLine, glow:`${C.amber}33`, icon:"👑" }
+    : rank===2
+    ? { bar:C.steel, chip:C.steelSoft, chipText:C.text, edge:C.steel, glow:`${C.steel}22`, icon:"🥈" }
+    : { bar:C.copper, chip:C.copperSoft, chipText:C.text, edge:C.copper, glow:`${C.copper}22`, icon:"🥉" };
   const pct = Math.max(6, Math.round((row.total / (maxValue||1)) * 100));
   return (
-    <button onClick={onClick} style={{background:C.card,border:`1px solid ${C.border}`}} className={`w-full text-left rounded-2xl overflow-hidden ${big?"px-5 pt-4 pb-4":"px-4 pt-3 pb-3"}`}>
+    <button onClick={onClick}
+      style={{
+        background: rank===1 ? `linear-gradient(160deg, ${C.card}, ${C.wine}55)` : C.card,
+        border: `1px solid ${tone.edge}`,
+        boxShadow: `0 0 24px ${tone.glow}`,
+        height: "100%",
+      }}
+      className={`w-full h-full text-left rounded-2xl overflow-hidden flex flex-col justify-center ${big?"px-5 pt-5 pb-5":"px-4 pt-4 pb-4"}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2.5">
-          <span style={{background:tone.chip,color:tone.chipText,fontFamily:FONT_DISPLAY}} className={`flex items-center justify-center rounded-full font-bold ${big?"w-8 h-8 text-base":"w-6 h-6 text-xs"}`}>{rank}</span>
+          <span style={{background:tone.chip,color:tone.chipText,fontFamily:FONT_DISPLAY,border:`1px solid ${tone.edge}`}} className={`flex items-center justify-center rounded-full font-bold flex-shrink-0 ${big?"w-10 h-10 text-lg":"w-7 h-7 text-sm"}`}>{tone.icon}</span>
           <div>
             <div className="flex items-center gap-1.5 mb-0.5"><RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span></div>
-            <div style={{color:C.ink}} className={`font-extrabold ${big?"text-lg":"text-[15px]"}`}>{name}</div>
+            <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className={big?"text-xl":"text-[15px] font-extrabold"}>{name}</div>
           </div>
         </div>
-        <div style={{fontFamily:FONT_DISPLAY,color:C.ink}} className={`font-bold ${big?"text-2xl":"text-lg"}`}>{row.total}<span style={{color:C.sub}} className="text-[10px] font-semibold ml-1">{metricLabel}</span></div>
       </div>
-      <div style={{background:C.bg, height: big?8:6}} className="w-full rounded-full overflow-hidden">
-        <div style={{background:tone.bar, width:`${pct}%`, height:"100%"}} className="rounded-full" />
+      <div style={{fontFamily:FONT_DISPLAY,color:tone.edge}} className={`font-bold mb-2 ${big?"text-3xl":"text-lg"}`}>{row.total}<span style={{color:C.sub,fontFamily:FONT_BODY}} className="text-[10px] font-semibold ml-1">{metricLabel}</span></div>
+      <div style={{background:"#00000066", height: big?8:6}} className="w-full rounded-full overflow-hidden">
+        <div style={{background:`linear-gradient(90deg, ${tone.bar}, ${C.goldBright})`, width:`${pct}%`, height:"100%"}} className="rounded-full" />
       </div>
     </button>
   );
@@ -565,12 +593,12 @@ function RankList({ rows, startRank, displayName, onSelect, highlightTop3, maxVa
           <button key={row.key} onClick={()=>onSelect(row.key)} style={{background:C.card,border:`1px solid ${C.border}`}} className="w-full text-left rounded-xl px-4 py-2.5">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2.5">
-                <span style={{color:isTop?"#fff":C.sub,background:isTop?tone:C.bg,fontFamily:FONT_DISPLAY}} className="text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{rank}</span>
+                <span style={{color:isTop?(rank===1?C.ink:"#fff"):C.sub,background:isTop?tone:C.ink,border:`1px solid ${isTop?tone:C.border}`,fontFamily:FONT_DISPLAY}} className="text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{rank}</span>
                 <RegionTag region={row.region} />
                 <span className="text-[13px] font-bold" style={{color:C.text}}>{maskName(displayName(row))}</span>
                 <span style={{color:C.sub}} className="text-[11px]">{deptLabel(row.dept)}</span>
               </div>
-              <span style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-[13px] font-bold">{row.total}</span>
+              <span style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-[13px] font-bold">{row.total}</span>
             </div>
             <div style={{background:C.bg,height:4}} className="w-full rounded-full overflow-hidden">
               <div style={{background:tone, width:`${pct}%`, height:"100%"}} className="rounded-full" />
@@ -654,7 +682,7 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
           <div>
             <div className="flex items-center gap-2 mb-1"><RegionTag region={region} /><span style={{color:C.sub}} className="text-xs font-semibold">{deptLabel(dept)}</span></div>
             <div className="flex items-center gap-2">
-              <div className="text-lg font-extrabold" style={{color:C.navy}}>{maskName(owner)} <span style={{color:C.sub}} className="text-xs font-medium">· {roleLabel}</span></div>
+              <div className="text-lg font-extrabold" style={{color:C.text}}>{maskName(owner)} <span style={{color:C.sub}} className="text-xs font-medium">· {roleLabel}</span></div>
               {allowed && isAdmin && !ownerId && (
                 <button onClick={deleteGhostPerson} disabled={ghostBusy} style={{color:C.danger}} className="text-[11px] font-bold">삭제</button>
               )}
@@ -707,7 +735,7 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
                       <input value={editName} onChange={ev=>setEditName(ev.target.value)} style={{...inputStyle,padding:"6px 8px",fontSize:13}} placeholder="이름(마스킹된 값)" />
                       <input value={editPhone} onChange={ev=>setEditPhone(ev.target.value)} style={{...inputStyle,padding:"6px 8px",fontSize:13}} placeholder="010-XXXX-0000" />
                       <div className="flex gap-2">
-                        <button onClick={()=>saveEdit(e.id)} disabled={busyId===e.id} style={{background:C.emerald}} className="flex-1 text-white text-xs font-bold py-1.5 rounded-lg">저장</button>
+                        <button onClick={()=>saveEdit(e.id)} disabled={busyId===e.id} style={{background:C.emerald,color:C.ink}} className="flex-1 text-xs font-bold py-1.5 rounded-lg">저장</button>
                         <button onClick={()=>setEditingId(null)} style={{background:C.bg,color:C.sub}} className="flex-1 text-xs font-bold py-1.5 rounded-lg">취소</button>
                       </div>
                     </div>
@@ -725,7 +753,7 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
                         {isAdmin && (
                           <div className="flex flex-col gap-1 ml-1">
                             <button onClick={()=>startEdit(e)} style={{color:C.slate}} className="text-[11px] font-semibold">수정</button>
-                            <button onClick={()=>deleteEntry(e.id)} disabled={busyId===e.id} style={{color:"#C23B3B"}} className="text-[11px] font-semibold">삭제</button>
+                            <button onClick={()=>deleteEntry(e.id)} disabled={busyId===e.id} style={{color:C.danger}} className="text-[11px] font-semibold">삭제</button>
                           </div>
                         )}
                       </div>
@@ -818,7 +846,7 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
       <div style={{background:C.card}} className="w-full max-w-lg rounded-t-2xl md:rounded-2xl p-5 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-lg font-extrabold" style={{color:C.navy}}>일괄 등록</div>
+          <div className="text-lg font-extrabold" style={{color:C.text}}>일괄 등록</div>
           <button onClick={onClose}>✕</button>
         </div>
 
@@ -830,7 +858,7 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
 
         <div className="mt-4">
           <div style={{color:C.sub}} className="text-xs font-semibold mb-1">데이터를 바로 붙여넣기 (제목 줄 없이, 탭/쉼표/슬래시/공백 구분 다 인식돼요)</div>
-          <div style={{background:C.bg,color:C.navy}} className="text-xs font-semibold rounded-lg px-3 py-2 mb-2">
+          <div style={{background:C.bg,color:C.text}} className="text-xs font-semibold rounded-lg px-3 py-2 mb-2">
             순서(고정): 직원 지역 / 직원 부서 / 직원 이름 / 대상자(프루트) 이름 / 번호
             <div style={{color:C.sub}} className="font-normal font-mono mt-1">예시) 본부/1팀/홍길동/이서준/010-1111-2222</div>
           </div>
@@ -844,12 +872,12 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
         </div>
 
         {msg && (
-          <div style={{color: msg.includes("실패")||msg.includes("필요") ? "#C23B3B" : C.emerald}} className="text-xs font-semibold mt-3">{msg}</div>
+          <div style={{color: msg.includes("실패")||msg.includes("필요") ? C.danger : C.goldBright}} className="text-xs font-semibold mt-3">{msg}</div>
         )}
 
         {rows && (
           <div className="mt-5">
-            <div className="font-bold mb-2 text-sm" style={{color:C.navy}}>열 매칭 확인 ({rows.length}행)</div>
+            <div className="font-bold mb-2 text-sm" style={{color:C.text}}>열 매칭 확인 ({rows.length}행)</div>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <Field label="직원 지역 열"><select value={mapRegion} onChange={e=>setMapRegion(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
               <Field label="직원 부서 열"><select value={mapDept} onChange={e=>setMapDept(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
@@ -864,7 +892,7 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
                 <tbody>{rows.slice(0,15).map((r,i)=>(<tr key={i} className="border-t" style={{borderColor:C.border}}>{headers.map(h=><td key={h} className="px-2 py-1.5">{r[h]}</td>)}</tr>))}</tbody>
               </table>
             </div>
-            <button onClick={save} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-3 w-full">{busy?"저장 중...":`${rows.length}건 저장하기`}</button>
+            <button onClick={save} disabled={busy} style={{background:C.emerald,color:C.ink}} className="font-bold py-3 rounded-xl mt-3 w-full">{busy?"저장 중...":`${rows.length}건 저장하기`}</button>
           </div>
         )}
       </div>
@@ -924,13 +952,13 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
       <div style={{background:C.card}} className="w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">문구 관리</div>
+          <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xl">문구 관리</div>
           <button onClick={onClose}>✕</button>
         </div>
         <p style={{color:C.sub}} className="text-xs mb-4">여기서 수정하면 모든 직원의 화면에 바로 반영돼요.</p>
 
         <div style={{border:`1px solid ${C.border}`}} className="rounded-2xl p-4 mb-4">
-          <div style={{color:C.ink}} className="text-sm font-bold mb-3">포스터 이미지</div>
+          <div style={{color:C.text}} className="text-sm font-bold mb-3">포스터 이미지</div>
           <div style={{color:C.sub}} className="text-[11px] mb-3">권장 비율 — 로그인 포스터: 가로로 넓은 배너형(3~4:1) / 메인 포스터: 카드형(3:2). 가로 1200px 이상 권장.</div>
           <div className="flex flex-col gap-3">
             <Field label="로그인 화면 포스터">
@@ -1024,7 +1052,7 @@ function RegionDeptManager({ regionRows, deptRows, onClose, onRegionsChanged, on
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
       <div style={{background:C.card}} className="w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">지역/부서 관리</div>
+          <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xl">지역/부서 관리</div>
           <button onClick={onClose}>✕</button>
         </div>
         <div style={{background:C.bg}} className="flex gap-1 mb-4 p-1 rounded-full">
@@ -1045,7 +1073,7 @@ function RegionDeptManager({ regionRows, deptRows, onClose, onRegionsChanged, on
         </div>
 
         <div style={{border:`1px dashed ${C.border}`}} className="rounded-2xl p-4">
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-sm mb-3">＋ {isRegion?"지역":"부서"} 추가</div>
+          <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-sm mb-3">＋ {isRegion?"지역":"부서"} 추가</div>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Field label="내부 값 (영문/코드 권장)"><input value={newKey} onChange={e=>setNewKey(e.target.value)} placeholder={isRegion?"예: 강남":"예: DEPT_J"} style={inputStyle} /></Field>
             <Field label="표시 이름"><input value={newName} onChange={e=>setNewName(e.target.value)} placeholder={isRegion?"예: 강남지사":"예: 3팀"} style={inputStyle} /></Field>
@@ -1110,7 +1138,7 @@ function CategoryManager({ labelRows, onClose, onChanged }) {
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
       <div style={{background:C.card}} className="w-full max-w-lg rounded-t-3xl md:rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">카테고리 관리</div>
+          <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xl">카테고리 관리</div>
           <button onClick={onClose}>✕</button>
         </div>
         <p style={{color:C.sub}} className="text-xs mb-4">여기서 수정하면 모든 직원의 화면에 바로 반영돼요.</p>
@@ -1138,7 +1166,7 @@ function CategoryManager({ labelRows, onClose, onChanged }) {
         </div>
 
         <div style={{border:`1px dashed ${C.border}`}} className="rounded-2xl p-4">
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-sm mb-3">＋ 새 카테고리 추가</div>
+          <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-sm mb-3">＋ 새 카테고리 추가</div>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Field label="탭 이름"><input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="예: 계약_신입" style={inputStyle} /></Field>
             <Field label="지표 이름"><input value={newMetric} onChange={e=>setNewMetric(e.target.value)} placeholder="예: 계약5" style={inputStyle} /></Field>
@@ -1187,7 +1215,7 @@ function EntryForm({ profile, roles, regionRows, deptRows, onClose, onSubmitted 
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
       <div style={{background:C.card}} className="w-full max-w-md rounded-t-2xl md:rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-lg font-extrabold" style={{color:C.navy}}>실적 등록 · {roles[role]?.label}</div>
+          <div className="text-lg font-extrabold" style={{color:C.text}}>실적 등록 · {roles[role]?.label}</div>
           <button onClick={onClose}>✕</button>
         </div>
         <div className="flex flex-col gap-3">
@@ -1199,8 +1227,8 @@ function EntryForm({ profile, roles, regionRows, deptRows, onClose, onSubmitted 
           <div style={{color:C.sub,background:C.bg}} className="text-[11px] rounded-lg px-3 py-2">
             이름·번호는 원본을 저장하지 않고, 등록 즉시 마스킹된 값만 저장돼요. 총관리자를 포함해 아무도 원본을 다시 볼 수 없고, 식별용 참고 정보로만 쓰입니다.
           </div>
-          {error && <div style={{color:"#C23B3B"}} className="text-xs font-semibold">{error}</div>}
-          <button onClick={submit} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-1">{busy?"등록 중...":"등록하기"}</button>
+          {error && <div style={{color:C.danger}} className="text-xs font-semibold">{error}</div>}
+          <button onClick={submit} disabled={busy} style={{background:C.emerald,color:C.ink}} className="font-bold py-3 rounded-xl mt-1">{busy?"등록 중...":"등록하기"}</button>
         </div>
       </div>
     </div>
