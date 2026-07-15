@@ -242,7 +242,13 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
   };
 
   return (
-    <div style={{background:`radial-gradient(circle at 20% 80%, ${C.wine}33 0%, transparent 45%), radial-gradient(circle at 80% 75%, ${C.amber}22 0%, transparent 40%), linear-gradient(180deg, ${C.bg} 0%, ${C.ink} 55%, #050307 100%)`,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5 py-10">
+    <div style={{
+        backgroundImage: `url(${siteTexts.bg_image_url || "bg-palace.png"})`,
+        backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
+        minHeight: "100vh",
+      }} className="relative">
+      <div style={{background:`radial-gradient(circle at 20% 80%, ${C.wine}33 0%, transparent 45%), linear-gradient(180deg, ${C.bg}CC 0%, ${C.ink}DD 55%, #050307EE 100%)`}} className="absolute inset-0" />
+      <div style={{fontFamily:FONT_BODY}} className="relative z-10 flex items-center justify-center px-5 py-10 min-h-screen">
       <div className="w-full max-w-sm">
         <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "왕의 자리는 당신의 것"} compact imgSrc={siteTexts.poster_login_url || "poster-login.png"} />
         <div style={{background:`linear-gradient(180deg, ${C.card}, #0A0705)`, border:`1px solid ${C.amberLine}55`, borderTop:"none", boxShadow:`0 20px 50px #00000088`}} className="w-full rounded-b-3xl p-7 -mt-2">
@@ -278,6 +284,7 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
         </div>
       </div>
       <style>{`.royal-btn:hover{box-shadow:0 0 18px ${C.amber}99, 0 0 4px ${C.goldBright}66 !important;}`}</style>
+      </div>
     </div>
   );
 }
@@ -358,7 +365,13 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
   const logout = () => supabase.auth.signOut();
 
   return (
-    <div style={{background:`radial-gradient(circle at 15% 10%, ${C.wine}22 0%, transparent 35%), radial-gradient(circle at 85% 20%, ${C.amber}18 0%, transparent 30%), linear-gradient(180deg, ${C.bg} 0%, ${C.ink} 100%)`,minHeight:"100vh",fontFamily:FONT_BODY,color:C.text}}>
+    <div style={{
+        backgroundImage: `radial-gradient(circle at 15% 10%, ${C.wine}33 0%, transparent 35%), radial-gradient(circle at 85% 20%, ${C.amber}22 0%, transparent 30%), linear-gradient(180deg, ${C.bg}CC 0%, ${C.ink}EE 100%), url(${siteTexts.bg_image_url || "bg-palace.png"})`,
+        backgroundSize: "auto, auto, auto, cover",
+        backgroundPosition: "center, center, center, center",
+        backgroundRepeat: "no-repeat, no-repeat, no-repeat, no-repeat",
+        backgroundAttachment: "fixed, fixed, fixed, fixed",
+        minHeight:"100vh",fontFamily:FONT_BODY,color:C.text}}>
       <MarqueeBar text={siteTexts.marquee_text} />
 
       <div style={{background:`linear-gradient(135deg, ${C.ink} 0%, ${C.wine} 100%)`, borderBottom:`1px solid ${C.amberLine}55`}} className="px-5 pt-4 pb-4">
@@ -382,7 +395,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
 
       <div className="max-w-[1280px] mx-auto px-5 -mt-1 pb-6">
         {/* 포스터 패널: 제목/부제만, 총관리자가 문구 관리에서 수정 가능 */}
-        <div className="mt-4 mb-4">
+        <div className="mt-4 mb-4 max-w-2xl mx-auto">
           <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "역할별로 실적을 등록하고, 실시간 순위로 확인해요."} imgSrc={siteTexts.poster_top3_url || "poster-top3.png"} />
         </div>
 
@@ -974,6 +987,13 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
                 <button onClick={()=>resetPoster("poster_top3_url")} disabled={uploadingKey==="poster_top3_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
               </div>
               {uploadingKey==="poster_top3_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
+            </Field>
+            <Field label="전체 배경 사진 (야경/궁궐 등)">
+              <div className="flex items-center gap-2">
+                <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "bg_image_url")} disabled={uploadingKey==="bg_image_url"} />
+                <button onClick={()=>resetPoster("bg_image_url")} disabled={uploadingKey==="bg_image_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
+              </div>
+              {uploadingKey==="bg_image_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
             </Field>
           </div>
         </div>
