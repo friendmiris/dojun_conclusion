@@ -450,6 +450,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
         <DetailModal
           owner={displayName(detailRow || {})}
           ownerId={detailRow?.owner_id}
+          roleKey={activeRole}
           region={detailRow?.region}
           dept={detailRow?.dept}
           roleLabel={ROLES[activeRole]?.label}
@@ -581,11 +582,12 @@ function RankList({ rows, startRank, displayName, onSelect, highlightTop3, maxVa
   );
 }
 
-function DetailModal({ owner, ownerId, region, dept, roleLabel, roles, regionRows, deptRows, entries, allowed, isAdmin, onClose, onChanged }) {
+function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, regionRows, deptRows, entries, allowed, isAdmin, onClose, onChanged }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [ghostBusy, setGhostBusy] = useState(false);
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [pName, setPName] = useState(owner);
@@ -635,13 +637,28 @@ function DetailModal({ owner, ownerId, region, dept, roleLabel, roles, regionRow
     onClose();
   };
 
+  // 프로필(로그인 계정)이 없는 사람 - 일괄등록으로만 만들어진 "가짜 계정" 전체 삭제
+  const deleteGhostPerson = async () => {
+    if (!window.confirm(`"${owner}" 이름으로 등록된 기록을 전부 삭제할까요? 되돌릴 수 없어요.`)) return;
+    setGhostBusy(true);
+    const { error } = await supabase.from("entries").delete()
+      .eq("role", roleKey).eq("owner_name", owner).is("owner_id", null);
+    setGhostBusy(false);
+    if (!error) { onChanged(); onClose(); }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
       <div style={{background:C.card}} className="w-full max-w-md rounded-t-2xl md:rounded-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <div style={{background:C.card,borderBottom:`1px solid ${C.border}`}} className="flex items-start justify-between px-5 py-4 flex-shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1"><RegionTag region={region} /><span style={{color:C.sub}} className="text-xs font-semibold">{deptLabel(dept)}</span></div>
-            <div className="text-lg font-extrabold" style={{color:C.navy}}>{maskName(owner)} <span style={{color:C.sub}} className="text-xs font-medium">· {roleLabel}</span></div>
+            <div className="flex items-center gap-2">
+              <div className="text-lg font-extrabold" style={{color:C.navy}}>{maskName(owner)} <span style={{color:C.sub}} className="text-xs font-medium">· {roleLabel}</span></div>
+              {allowed && isAdmin && !ownerId && (
+                <button onClick={deleteGhostPerson} disabled={ghostBusy} style={{color:C.danger}} className="text-[11px] font-bold">삭제</button>
+              )}
+            </div>
           </div>
           <button onClick={onClose} style={{background:C.bg}} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">✕</button>
         </div>
