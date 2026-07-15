@@ -468,18 +468,39 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
 
           {view==="top3" && ranking.length>0 && <>
-            <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-4 mb-7 justify-center pt-3">
-              {top3.map((row,i)=>{
-                const orderClass = i===0 ? "order-1 md:order-2" : i===1 ? "order-2 md:order-1" : "order-3 md:order-3";
-                const widthClass = i===0 ? "md:flex-[1.15]" : "md:flex-1";
-                return (
-                  <div key={row.key} className={`${orderClass} ${widthClass}`}>
-                    <ScoreRow rank={i+1} row={row} name={maskName(displayName(row))}
-                      metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
-                      big={i===0} onClick={()=>setDetailOwner(row.key)} />
-                  </div>
-                );
-              })}
+            {/* 데스크톱/태블릿: 틀 이미지 위에 실제 데이터 오버레이 */}
+            <div style={{position:"relative"}} className="hidden md:block mb-7 pt-3">
+              <img src={siteTexts.top3_frame_url || "top3-cards-only.png"} alt="TOP3" style={{width:"100%", height:"auto", display:"block", borderRadius:16}} />
+              <div style={{position:"absolute", top:0, left:0, right:0, bottom:0}}>
+                {top3.map((row,i)=>{
+                  const box = i===0
+                    ? { left:"38%", width:"24%", top:"2%", height:"92%", paddingTop:"42%" }
+                    : i===1
+                    ? { left:"12%", width:"25%", top:"10%", height:"80%", paddingTop:"46%" }
+                    : { left:"63%", width:"25%", top:"10%", height:"80%", paddingTop:"46%" };
+                  return (
+                    <button key={row.key} onClick={()=>setDetailOwner(row.key)}
+                      style={{position:"absolute", left:box.left, width:box.width, top:box.top, height:box.height, paddingTop:box.paddingTop,
+                        display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", paddingLeft:8, paddingRight:8}}>
+                      <div className="flex items-center gap-1.5">
+                        <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span>
+                      </div>
+                      <div style={{color:C.text,fontFamily:"'Nanum Myeongjo', serif",textShadow:"0 2px 6px #00000099",fontWeight:800,lineHeight:1.2,marginTop:8,fontSize:i===0?24:20}}>{maskName(displayName(row))}</div>
+                      <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY,textShadow:"0 2px 8px #00000099",lineHeight:1,marginTop:10,fontSize:i===0?36:28}}>
+                        {row.total}<span style={{color:C.sub,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,marginLeft:6}}>{ROLES[activeRole].metricLabel}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* 모바일: 카드형 세로 배치 */}
+            <div className="flex flex-col md:hidden gap-6 mb-7 pt-3">
+              {top3.map((row,i)=>(
+                <ScoreRow key={row.key} rank={i+1} row={row} name={maskName(displayName(row))}
+                  metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
+                  big={i===0} onClick={()=>setDetailOwner(row.key)} />
+              ))}
             </div>
             {rest.length>0 && <>
               <h3 style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xs font-bold mb-3 tracking-wide">4 – {ranking.length}위</h3>
