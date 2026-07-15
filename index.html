@@ -84,6 +84,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [labelRows, setLabelRows] = useState(null);
+  const [siteTexts, setSiteTexts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
 
@@ -100,6 +101,14 @@ function App() {
     const { data } = await supabase.from("labels").select("*").order("sort_order", { ascending: true });
     setLabelRows(data || []);
   };
+  const loadSiteTexts = async () => {
+    const { data } = await supabase.from("site_texts").select("*");
+    const map = {};
+    (data||[]).forEach(t => map[t.text_key] = t.content);
+    setSiteTexts(map);
+  };
+
+  useEffect(() => { loadSiteTexts(); }, []);
 
   useEffect(() => {
     if (!session) { setProfile(null); setLoading(false); return; }
@@ -114,8 +123,8 @@ function App() {
 
   if (recoveryMode) return <ResetPasswordScreen onDone={() => setRecoveryMode(false)} />;
   if (loading && session) return <div style={{background:C.bg,minHeight:"100vh"}} />;
-  if (!session || !profile) return <AuthScreen />;
-  return <Dashboard profile={profile} labelRows={labelRows||[]} onLabelsChanged={loadLabels} />;
+  if (!session || !profile) return <AuthScreen siteTexts={siteTexts||{}} />;
+  return <Dashboard profile={profile} labelRows={labelRows||[]} onLabelsChanged={loadLabels} siteTexts={siteTexts||{}} onTextsChanged={loadSiteTexts} />;
 }
 
 function ResetPasswordScreen({ onDone }) {
@@ -156,7 +165,7 @@ function ResetPasswordScreen({ onDone }) {
 }
 
 /* ===== 로그인 / 회원가입 ===== */
-function AuthScreen() {
+function AuthScreen({ siteTexts }) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -201,38 +210,37 @@ function AuthScreen() {
   };
 
   return (
-    <div style={{background:C.ink,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5">
-      <div style={{background:C.card}} className="w-full max-w-sm rounded-3xl p-7">
-        <div className="flex items-center gap-2.5 mb-1">
-          <LogoMark />
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">누가 왕이 될 상인가</div>
-        </div>
-        <div style={{background:C.bg}} className="flex gap-1 my-5 p-1 rounded-full">
-          <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?C.ink:"transparent",color:mode==="signin"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">로그인</button>
-          <button onClick={()=>setMode("signup")} style={{background:mode==="signup"?C.ink:"transparent",color:mode==="signup"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">회원가입</button>
-        </div>
-        <div className="flex flex-col gap-3">
-          <Field label="이메일"><input value={email} onChange={e=>setEmail(e.target.value)} style={inputStyle} placeholder="you@example.com" /></Field>
-          <Field label="비밀번호"><input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={inputStyle} /></Field>
-          {mode==="signup" && <>
-            <Field label="이름"><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} /></Field>
-            <Field label="역할"><select value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}>{roleOptions.map(r=><option key={r.role_key} value={r.role_key}>{r.display_name}</option>)}</select></Field>
-            <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
-            <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
-          </>}
-          {error && <div style={{color:C.danger}} className="text-xs font-semibold">{error}</div>}
-          {notice && <div style={{color:C.teal}} className="text-xs font-semibold">{notice}</div>}
-          <button onClick={mode==="signin"?signIn:signUp} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-full mt-1">
-            {busy ? "처리 중..." : mode==="signin" ? "로그인" : "가입하기"}
-          </button>
-          {mode==="signin" && (
-            <button onClick={sendResetEmail} disabled={busy} style={{color:C.sub}} className="text-xs text-center underline mt-1">
-              비밀번호를 잊으셨나요?
+    <div style={{background:`linear-gradient(180deg, ${C.ink} 0%, #4A2F5C 100%)`,minHeight:"100vh",fontFamily:FONT_BODY}} className="flex items-center justify-center px-5 py-10">
+      <div className="w-full max-w-sm">
+        <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "왕의 자리는 당신의 것"} compact />
+        <div style={{background:C.card}} className="w-full rounded-b-3xl p-7 -mt-2">
+          <div style={{background:C.bg}} className="flex gap-1 mb-5 p-1 rounded-full">
+            <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?C.ink:"transparent",color:mode==="signin"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">로그인</button>
+            <button onClick={()=>setMode("signup")} style={{background:mode==="signup"?C.ink:"transparent",color:mode==="signup"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">회원가입</button>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Field label="이메일"><input value={email} onChange={e=>setEmail(e.target.value)} style={inputStyle} placeholder="you@example.com" /></Field>
+            <Field label="비밀번호"><input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={inputStyle} /></Field>
+            {mode==="signup" && <>
+              <Field label="이름"><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} /></Field>
+              <Field label="역할"><select value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}>{roleOptions.map(r=><option key={r.role_key} value={r.role_key}>{r.display_name}</option>)}</select></Field>
+              <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
+              <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
+            </>}
+            {error && <div style={{color:C.danger}} className="text-xs font-semibold">{error}</div>}
+            {notice && <div style={{color:C.teal}} className="text-xs font-semibold">{notice}</div>}
+            <button onClick={mode==="signin"?signIn:signUp} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-full mt-1">
+              {busy ? "처리 중..." : mode==="signin" ? "로그인" : "가입하기"}
             </button>
-          )}
-        </div>
-        <div style={{color:C.sub,background:C.bg}} className="text-[11px] rounded-lg px-3 py-2 mt-4">
-          총관리자 계정은 일반 가입 후 총관리자가 직접 권한을 바꿔줘야 해요.
+            {mode==="signin" && (
+              <button onClick={sendResetEmail} disabled={busy} style={{color:C.sub}} className="text-xs text-center underline mt-1">
+                비밀번호를 잊으셨나요?
+              </button>
+            )}
+          </div>
+          <div style={{color:C.sub,background:C.bg}} className="text-[11px] rounded-lg px-3 py-2 mt-4">
+            총관리자 계정은 일반 가입 후 총관리자가 직접 권한을 바꿔줘야 해요.
+          </div>
         </div>
       </div>
     </div>
@@ -240,7 +248,7 @@ function AuthScreen() {
 }
 
 /* ===== 대시보드 ===== */
-function Dashboard({ profile, labelRows, onLabelsChanged }) {
+function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChanged }) {
   const ROLE_KEYS = useMemo(() => labelRows.map(l => l.role_key), [labelRows]);
   const ROLES = useMemo(() => {
     const out = {};
@@ -254,6 +262,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged }) {
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showTextManager, setShowTextManager] = useState(false);
   const [view, setView] = useState("top3");
   const [fetchError, setFetchError] = useState("");
   const [ownerNames, setOwnerNames] = useState({});
@@ -309,14 +318,14 @@ function Dashboard({ profile, labelRows, onLabelsChanged }) {
 
   return (
     <div style={{background:`linear-gradient(180deg, ${C.bg} 0%, #F4EEFF 100%)`,minHeight:"100vh",fontFamily:FONT_BODY,color:C.text}}>
-      <MarqueeBar />
+      <MarqueeBar text={siteTexts.marquee_text} />
 
       <div style={{background:`linear-gradient(135deg, ${C.ink} 0%, #4A2F5C 100%)`}} className="px-5 pt-4 pb-4">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
           <div className="flex items-center gap-2.5">
             <LogoMark />
             <div>
-              <div style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-base leading-none">누가 왕이 될 상인가</div>
+              <div style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-base leading-none">{siteTexts.hero_title || "누가 왕이 될 상인가"}</div>
               <div style={{color:"#C4B3D6"}} className="text-[11px] mt-1">
                 {isAdmin ? "총관리자" : `${ROLES[profile.role]?.label||""} · ${maskName(profile.name)}`}
               </div>
@@ -331,39 +340,34 @@ function Dashboard({ profile, labelRows, onLabelsChanged }) {
       </div>
 
       <div className="max-w-3xl mx-auto px-5 -mt-1 pb-6">
-        {/* 히어로 카드: 참고 사이트의 윈도우-창 느낌 */}
-        <div style={{background:C.card, border:`1px solid ${C.border}`}} className="rounded-3xl overflow-hidden mt-4 mb-6">
-          <div style={{background:`repeating-linear-gradient(135deg, ${C.amberSoft}, ${C.amberSoft} 10px, ${C.card} 10px, ${C.card} 20px)`}} className="h-9 flex items-center px-4 gap-1.5">
-            <span style={{background:C.amber}} className="w-2.5 h-2.5 rounded-full" />
-            <span style={{background:C.steel}} className="w-2.5 h-2.5 rounded-full" />
-            <span style={{background:C.copper}} className="w-2.5 h-2.5 rounded-full" />
-          </div>
-          <div className="px-6 pt-6 pb-5 text-center">
-            <h1 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-3xl leading-tight mb-2">누가 왕이 될 상인가</h1>
-            <p style={{color:C.sub}} className="text-[13px] mb-5">역할별로 실적을 등록하고, 실시간 순위로 확인해요.</p>
-
-            {ROLE_KEYS.length === 0 ? (
-              <EmptyState text={isAdmin ? "아직 카테고리가 없어요. 아래 버튼으로 추가해보세요." : "아직 등록된 카테고리가 없어요. 총관리자에게 문의해주세요."} />
-            ) : (
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {ROLE_KEYS.map((r,i) => {
-                  const tone = [C.amber, C.steel, C.copper, C.teal][i % 4];
-                  const toneSoft = [C.amberSoft, C.steelSoft, C.copperSoft, C.tealSoft][i % 4];
-                  const active = activeRole === r;
-                  return (
-                    <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}}
-                      style={{background:active?tone:toneSoft, color:active?"#fff":C.ink}}
-                      className="text-[13px] font-bold px-4 py-2 rounded-full">{ROLES[r].label}</button>
-                  );
-                })}
-              </div>
-            )}
-            {isAdmin && (
-              <button onClick={()=>setShowCategoryManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-bold px-3 py-1.5 rounded-full mt-4">⚙ 카테고리 관리</button>
-            )}
-          </div>
+        {/* 포스터 패널: 제목/부제만, 총관리자가 문구 관리에서 수정 가능 */}
+        <div className="mt-4 mb-4">
+          <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "역할별로 실적을 등록하고, 실시간 순위로 확인해요."} />
         </div>
 
+        {/* 카테고리 알약: 포스터 바깥으로 */}
+        {ROLE_KEYS.length === 0 ? (
+          <EmptyState text={isAdmin ? "아직 카테고리가 없어요. 아래 버튼으로 추가해보세요." : "아직 등록된 카테고리가 없어요. 총관리자에게 문의해주세요."} />
+        ) : (
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+            {ROLE_KEYS.map((r,i) => {
+              const tone = [C.amber, C.steel, C.copper, C.teal][i % 4];
+              const toneSoft = [C.amberSoft, C.steelSoft, C.copperSoft, C.tealSoft][i % 4];
+              const active = activeRole === r;
+              return (
+                <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}}
+                  style={{background:active?tone:toneSoft, color:active?"#fff":C.ink, border:`1px solid ${active?tone:C.border}`}}
+                  className="text-[13px] font-bold px-4 py-2 rounded-full">{ROLES[r].label}</button>
+              );
+            })}
+          </div>
+        )}
+        {isAdmin && (
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <button onClick={()=>setShowCategoryManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`,background:C.card}} className="text-[11px] font-bold px-3 py-1.5 rounded-full">⚙ 카테고리 관리</button>
+            <button onClick={()=>setShowTextManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`,background:C.card}} className="text-[11px] font-bold px-3 py-1.5 rounded-full">✏️ 문구 관리</button>
+          </div>
+        )}
         {activeRole && ROLES[activeRole] && <>
           {!isAdmin && (
             <div style={{background:C.tealSoft,border:`1px solid ${C.teal}22`}} className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
@@ -419,20 +423,42 @@ function Dashboard({ profile, labelRows, onLabelsChanged }) {
       {showForm && <EntryForm profile={profile} roles={ROLES} onClose={()=>setShowForm(false)} onSubmitted={()=>setShowForm(false)} />}
       {showBulk && <BulkEntryForm roles={ROLES} onClose={()=>setShowBulk(false)} onSaved={()=>setRefreshKey(k=>k+1)} />}
       {showCategoryManager && <CategoryManager labelRows={labelRows} onClose={()=>setShowCategoryManager(false)} onChanged={onLabelsChanged} />}
+      {showTextManager && <SiteTextManager siteTexts={siteTexts} onClose={()=>setShowTextManager(false)} onChanged={onTextsChanged} />}
     </div>
   );
 }
 
-function MarqueeBar() {
-  const text = "👑 이달의 실적왕은 누구? · 지금 바로 확인하기 · 순위는 실시간으로 반영돼요 · 총관리자만 카테고리 추가/수정 가능 · ";
+function MarqueeBar({ text }) {
+  const t = text || "👑 이달의 실적왕은 누구? · 지금 바로 확인하기 · 순위는 실시간으로 반영돼요 · ";
   return (
     <div style={{background:`linear-gradient(90deg, ${C.amber}, ${C.steel})`}} className="overflow-hidden whitespace-nowrap py-1.5">
       <div className="inline-block" style={{animation:"marquee 22s linear infinite"}}>
-        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2">{text.repeat(4)}</span>
+        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2">{t.repeat(4)}</span>
       </div>
       <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
   );
+}
+
+function PosterPanel({ title, subtitle, compact }) {
+  return (
+    <div style={{background:"linear-gradient(160deg, #FFF6E9, #FDEAD2)", border:"1px solid #E9C98F"}}
+      className={`relative overflow-hidden px-6 text-center ${compact ? "pt-7 pb-8 rounded-t-3xl" : "pt-10 pb-9 rounded-3xl"}`}>
+      <CornerOrnament className="absolute top-3 left-3" />
+      <CornerOrnament className="absolute top-3 right-3" flip="x" />
+      <CornerOrnament className="absolute bottom-3 left-3" flip="y" />
+      <CornerOrnament className="absolute bottom-3 right-3" flip="xy" />
+      <div style={{fontSize:compact?26:32}} className="mb-1">👑</div>
+      <h1 style={{color:"#7A2E2E",fontFamily:FONT_DISPLAY}} className={compact?"text-2xl leading-snug":"text-3xl leading-snug"}>
+        <span style={{color:"#C9A227"}}>〈</span> {title} <span style={{color:"#C9A227"}}>〉</span>
+      </h1>
+      {subtitle && <p style={{color:"#9C7A3C"}} className="text-[12px] mt-2">◈ {subtitle}</p>}
+    </div>
+  );
+}
+function CornerOrnament({ className, flip }) {
+  const t = flip==="x" ? "scaleX(-1)" : flip==="y" ? "scaleY(-1)" : flip==="xy" ? "scale(-1,-1)" : "none";
+  return <svg width="20" height="20" viewBox="0 0 20 20" className={className} style={{transform:t}}><path d="M2 2 H13 M2 2 V13" stroke="#C9A227" strokeWidth="2" fill="none" /></svg>;
 }
 
 function LogoMark() {
@@ -710,6 +736,53 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
             <button onClick={save} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-3 w-full">{busy?"저장 중...":`${rows.length}건 저장하기`}</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SiteTextManager({ siteTexts, onClose, onChanged }) {
+  const [marquee, setMarquee] = useState(siteTexts.marquee_text || "");
+  const [heroTitle, setHeroTitle] = useState(siteTexts.hero_title || "");
+  const [heroSubtitle, setHeroSubtitle] = useState(siteTexts.hero_subtitle || "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const save = async () => {
+    setBusy(true); setMsg("");
+    const rows = [
+      { text_key: "marquee_text", content: marquee },
+      { text_key: "hero_title", content: heroTitle },
+      { text_key: "hero_subtitle", content: heroSubtitle },
+    ];
+    const { error } = await supabase.from("site_texts").upsert(rows, { onConflict: "text_key" });
+    setBusy(false);
+    if (error) { setMsg("저장 실패: " + error.message); return; }
+    setMsg("✅ 저장 완료! 모든 직원 화면에 바로 반영돼요.");
+    onChanged();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
+      <div style={{background:C.card}} className="w-full max-w-md rounded-t-3xl md:rounded-3xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">문구 관리</div>
+          <button onClick={onClose}>✕</button>
+        </div>
+        <p style={{color:C.sub}} className="text-xs mb-4">여기서 수정하면 모든 직원의 화면에 바로 반영돼요.</p>
+        <div className="flex flex-col gap-3">
+          <Field label="맨 위 움직이는 배너 문구">
+            <textarea value={marquee} onChange={e=>setMarquee(e.target.value)} rows={2} style={inputStyle} />
+          </Field>
+          <Field label="큰 제목 (포스터 타이틀)">
+            <input value={heroTitle} onChange={e=>setHeroTitle(e.target.value)} style={inputStyle} />
+          </Field>
+          <Field label="부제">
+            <input value={heroSubtitle} onChange={e=>setHeroSubtitle(e.target.value)} style={inputStyle} />
+          </Field>
+          {msg && <div style={{color: msg.includes("실패")?C.danger:C.teal}} className="text-xs font-semibold">{msg}</div>}
+          <button onClick={save} disabled={busy} style={{background:C.amber,color:C.ink}} className="font-bold py-3 rounded-full mt-1">{busy?"저장 중...":"저장하기"}</button>
+        </div>
       </div>
     </div>
   );
