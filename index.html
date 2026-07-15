@@ -371,7 +371,7 @@ function Dashboard({ profile, labels }) {
         />
       )}
       {showForm && <EntryForm profile={profile} roles={ROLES} onClose={()=>setShowForm(false)} onSubmitted={()=>setShowForm(false)} />}
-      {showBulk && <BulkEntryForm roles={ROLES} onClose={()=>setShowBulk(false)} onSaved={()=>{setShowBulk(false); setRefreshKey(k=>k+1);}} />}
+      {showBulk && <BulkEntryForm roles={ROLES} onClose={()=>setShowBulk(false)} onSaved={()=>setRefreshKey(k=>k+1)} />}
     </div>
   );
 }
@@ -504,13 +504,15 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const splitLine = (line, delim) => delim === "ws" ? line.trim().split(/\s+/) : line.split(delim);
+
   const parseText = () => {
     const lines = rawText.trim().split("\n").filter(l => l.trim());
     if (lines.length < 2) { setMsg("최소 헤더 1줄 + 데이터 1줄 이상 필요해요."); return; }
-    const delim = lines[0].includes("\t") ? "\t" : ",";
-    const head = lines[0].split(delim).map(h => h.trim());
+    const delim = lines[0].includes("\t") ? "\t" : lines[0].includes(",") ? "," : lines[0].includes("/") ? "/" : "ws";
+    const head = splitLine(lines[0], delim).map(h => h.trim());
     const data = lines.slice(1).map(line => {
-      const cells = line.split(delim);
+      const cells = splitLine(line, delim);
       const obj = {};
       head.forEach((h,i) => obj[h] = (cells[i]||"").trim());
       return obj;
@@ -552,6 +554,8 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
     const { error } = await supabase.from("entries").insert(payload);
     setBusy(false);
     if (error) { setMsg("저장 실패: " + error.message); return; }
+    setMsg(`✅ ${payload.length}건 저장 완료!`);
+    setRows(null); setRawText("");
     onSaved();
   };
 
@@ -570,8 +574,9 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
         </Field>
 
         <div className="mt-4">
-          <div style={{color:C.sub}} className="text-xs font-semibold mb-1">엑셀 표를 복사해서 붙여넣기</div>
+          <div style={{color:C.sub}} className="text-xs font-semibold mb-1">엑셀 표를 복사해서 붙여넣기 (탭/쉼표/공백 구분 모두 인식돼요)</div>
           <textarea value={rawText} onChange={e=>setRawText(e.target.value)} rows={5} style={{...inputStyle, fontFamily:"monospace"}} placeholder={"지역\t부서\t이름\t번호\n본부\tDEPT_A\t김민준\t010-1111-2222"} />
+          <div style={{color:C.sub}} className="text-[11px] mt-1">※ 아래 각 열은 <b>실적을 올린 직원 본인의</b> 지역/부서/이름/번호예요.</div>
           <button onClick={parseText} style={{background:C.slate}} className="text-white text-xs font-bold px-4 py-2 rounded-lg mt-2">텍스트 불러오기</button>
         </div>
 
@@ -584,10 +589,10 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
           <div className="mt-5">
             <div className="font-bold mb-2 text-sm" style={{color:C.navy}}>열 매칭 확인 ({rows.length}행)</div>
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <Field label="지역 열"><select value={mapRegion} onChange={e=>setMapRegion(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
-              <Field label="부서 열"><select value={mapDept} onChange={e=>setMapDept(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
-              <Field label="이름 열 (필수)"><select value={mapName} onChange={e=>setMapName(e.target.value)} style={inputStyle}>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
-              <Field label="번호 열"><select value={mapPhone} onChange={e=>setMapPhone(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
+              <Field label="직원 지역 열"><select value={mapRegion} onChange={e=>setMapRegion(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
+              <Field label="직원 부서 열"><select value={mapDept} onChange={e=>setMapDept(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
+              <Field label="직원 이름 열 (필수)"><select value={mapName} onChange={e=>setMapName(e.target.value)} style={inputStyle}>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
+              <Field label="직원 번호 열 (선택)"><select value={mapPhone} onChange={e=>setMapPhone(e.target.value)} style={inputStyle}><option value="">(없음)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
               <Field label="값(건수) 열 - 없으면 1건씩"><select value={mapValue} onChange={e=>setMapValue(e.target.value)} style={inputStyle}><option value="">(없음, 1건씩)</option>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select></Field>
             </div>
             <div className="max-h-40 overflow-y-auto border rounded-lg" style={{borderColor:C.border}}>
