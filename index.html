@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>실적 랭킹</title>
+<title>총관리자 데이터 입력 도구</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -16,62 +17,27 @@
 <script type="text/babel">
 const { useState, useEffect, useMemo } = React;
 
-/* ===== 여기 두 줄만 실제 값으로 채워져 있어요 (Supabase 프로젝트 설정 -> API) ===== */
 const SUPABASE_URL = "https://qhsjzahnqopgtjgsmhro.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoc2p6YWhucW9wZ3RqZ3NtaHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjAxODIsImV4cCI6MjA5OTU5NjE4Mn0.X9hLFAJ5AtS3OkiCBmnXN5a7m_k7InkL-TPOwPCjQkQ";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ===== 팔레트 ===== */
 const C = {
   navy: "#16223D", slate: "#2E4374", emerald: "#1F9463", emeraldSoft: "#E6F5EE",
   gold: "#C9971F", goldSoft: "#FBF1DC", silver: "#8D97A6", silverSoft: "#EEF0F3",
   bronze: "#B0692E", bronzeSoft: "#F6E7DA", bg: "#F4F5F9", card: "#FFFFFF",
   text: "#1B1F2A", sub: "#6B7280", border: "#E6E8EF",
 };
-
-/* ===== 마스킹 ===== */
-function maskName(name) {
-  if (!name) return "";
-  const chars = Array.from(name.trim());
-  if (chars.length <= 1) return chars.join("");
-  if (chars.length === 2) return chars[0] + "ㅇ";
-  return chars[0] + "ㅇ".repeat(chars.length - 2) + chars[chars.length - 1];
-}
-function maskPhone(phone) {
-  if (!phone) return "";
-  const digits = phone.replace(/[^0-9]/g, "");
-  if (digits.length === 11) return `${digits.slice(0,3)}-XXXX-${digits.slice(7)}`;
-  if (digits.length === 10) return `${digits.slice(0,3)}-XXX-${digits.slice(6)}`;
-  return phone;
-}
-
-const ROLE_KEYS = ["ROLE_1", "ROLE_2", "ROLE_3", "ROLE_4"];
-const ROLE_METRIC_TYPE = { ROLE_1: "manual", ROLE_2: "count", ROLE_3: "count", ROLE_4: "count" };
-const REGIONS = ["본부", "북구", "광산"];
-const DEPT_KEYS = ["DEPT_A","DEPT_B","DEPT_C","DEPT_D","DEPT_E","DEPT_F","DEPT_G","DEPT_H","DEPT_I"];
-const deptLabel = (k) => k;
-
 const inputStyle = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-
 function Field({ label, children }) {
   return <div><div style={{ color: C.sub }} className="text-xs font-semibold mb-1">{label}</div>{children}</div>;
 }
-function RegionTag({ region }) {
-  const colors = { 본부: C.navy, 북구: C.bronze, 광산: C.emerald };
-  return <span style={{ background: (colors[region]||C.slate)+"1A", color: colors[region]||C.slate }} className="text-[11px] font-bold px-2 py-0.5 rounded-md">{region}</span>;
-}
-function EmptyState({ text }) {
-  return <div style={{ border: `1px dashed ${C.border}`, color: C.sub }} className="rounded-xl py-8 text-center text-sm">{text}</div>;
-}
-
 const RANK_STYLE = { 1:{medalBg:C.gold,soft:C.goldSoft}, 2:{medalBg:C.silver,soft:C.silverSoft}, 3:{medalBg:C.bronze,soft:C.bronzeSoft} };
 const MEDAL = { 1:"🥇", 2:"🥈", 3:"🥉" };
 
-/* ===== 최상위 앱: 로그인 상태 관리 ===== */
+/* ===== 최상위: 로그인 + 관리자 체크 ===== */
 function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [labels, setLabels] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -84,345 +50,258 @@ function App() {
     if (!session) { setProfile(null); setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const { data: p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-      setProfile(p);
-      const { data: labelRows } = await supabase.from("labels").select("*");
-      const map = {};
-      (labelRows||[]).forEach(l => map[l.role_key] = l);
-      setLabels(map);
+      const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+      setProfile(data);
       setLoading(false);
     })();
   }, [session]);
 
   if (loading && session) return <div style={{background:C.bg,minHeight:"100vh"}} />;
-  if (!session || !profile) return <AuthScreen />;
-  return <Dashboard profile={profile} labels={labels} />;
+  if (!session) return <LoginScreen />;
+  if (!profile || profile.role !== "관리자") return <NoAccess />;
+  return <AdminTool />;
 }
 
-/* ===== 로그인 / 회원가입 ===== */
-function AuthScreen() {
-  const [mode, setMode] = useState("signin");
+function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("ROLE_1");
-  const [region, setRegion] = useState(REGIONS[0]);
-  const [dept, setDept] = useState(DEPT_KEYS[0]);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-
   const signIn = async () => {
     setError(""); setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) setError(error.message);
   };
-  const signUp = async () => {
-    setError(""); setNotice(""); setBusy(true);
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { name, role, region, dept } } });
-    setBusy(false);
-    if (error) { setError(error.message); return; }
-    setNotice("가입 완료! 이메일 인증이 필요할 수 있어요. 인증 후 로그인해주세요.");
-    setMode("signin");
-  };
-
   return (
     <div style={{background:C.navy,minHeight:"100vh"}} className="flex items-center justify-center px-5">
       <div style={{background:C.card}} className="w-full max-w-sm rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-1">
-          <div style={{background:C.emerald}} className="w-9 h-9 rounded-lg flex items-center justify-center text-white">🏆</div>
-          <div style={{color:C.navy}} className="text-lg font-extrabold">실적 랭킹</div>
-        </div>
-        <div className="flex gap-2 my-4">
-          <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?C.navy:C.bg,color:mode==="signin"?"#fff":C.sub}} className="flex-1 py-2 rounded-lg text-sm font-semibold">로그인</button>
-          <button onClick={()=>setMode("signup")} style={{background:mode==="signup"?C.navy:C.bg,color:mode==="signup"?"#fff":C.sub}} className="flex-1 py-2 rounded-lg text-sm font-semibold">회원가입</button>
-        </div>
+        <div className="text-lg font-extrabold mb-4" style={{color:C.navy}}>🔐 총관리자 로그인</div>
         <div className="flex flex-col gap-3">
-          <Field label="이메일"><input value={email} onChange={e=>setEmail(e.target.value)} style={inputStyle} placeholder="you@example.com" /></Field>
+          <Field label="이메일"><input value={email} onChange={e=>setEmail(e.target.value)} style={inputStyle} /></Field>
           <Field label="비밀번호"><input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={inputStyle} /></Field>
-          {mode==="signup" && <>
-            <Field label="이름"><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} /></Field>
-            <Field label="역할"><select value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}>{ROLE_KEYS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
-            <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
-            <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
-          </>}
           {error && <div style={{color:"#C23B3B"}} className="text-xs font-semibold">{error}</div>}
-          {notice && <div style={{color:C.emerald}} className="text-xs font-semibold">{notice}</div>}
-          <button onClick={mode==="signin"?signIn:signUp} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-1">
-            {busy ? "처리 중..." : mode==="signin" ? "로그인" : "가입하기"}
-          </button>
-        </div>
-        <div style={{color:C.sub,background:C.bg}} className="text-[11px] rounded-lg px-3 py-2 mt-4">
-          총관리자 계정은 일반 가입 후 총관리자가 직접 권한을 바꿔줘야 해요.
+          <button onClick={signIn} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-1">{busy?"확인 중...":"로그인"}</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ===== 대시보드 ===== */
-function Dashboard({ profile, labels }) {
-  const [activeRole, setActiveRole] = useState("ROLE_1");
-  const [entries, setEntries] = useState([]);
-  const [detailOwner, setDetailOwner] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [view, setView] = useState("top3");
-  const [fetchError, setFetchError] = useState("");
-  const [ownerNames, setOwnerNames] = useState({});
+function NoAccess() {
+  return (
+    <div style={{background:C.bg,minHeight:"100vh"}} className="flex items-center justify-center px-5">
+      <div style={{background:C.card,border:`1px solid ${C.border}`}} className="rounded-2xl p-6 text-center max-w-sm">
+        <div className="text-2xl mb-2">🔒</div>
+        <div className="font-bold mb-1" style={{color:C.navy}}>총관리자 전용 도구예요</div>
+        <div style={{color:C.sub}} className="text-sm">이 계정은 총관리자 권한이 없어요.</div>
+        <button onClick={()=>supabase.auth.signOut()} style={{background:C.navy}} className="text-white text-xs font-bold px-4 py-2 rounded-lg mt-4">로그아웃</button>
+      </div>
+    </div>
+  );
+}
 
-  const isAdmin = profile.role === "관리자";
+/* ===== 본체: 업로드 + 순위 보기 ===== */
+function AdminTool() {
+  const [tab, setTab] = useState("upload"); // upload | view
+  const [rawText, setRawText] = useState("");
+  const [rows, setRows] = useState(null);       // 파싱된 원본 rows (array of objects)
+  const [headers, setHeaders] = useState([]);
+  const [mapCategory, setMapCategory] = useState("");
+  const [mapName, setMapName] = useState("");
+  const [mapValue, setMapValue] = useState("");
+  const [saveMsg, setSaveMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [rankRows, setRankRows] = useState([]);
 
-  const ROLES = useMemo(() => {
-    const out = {};
-    ROLE_KEYS.forEach(k => out[k] = {
-      label: labels?.[k]?.display_name || k,
-      metricLabel: labels?.[k]?.metric_label || k,
-      metricType: ROLE_METRIC_TYPE[k],
+  /* ---- 텍스트 붙여넣기 파싱 ---- */
+  const parseText = () => {
+    const lines = rawText.trim().split("\n").filter(l => l.trim());
+    if (lines.length < 2) { setSaveMsg("최소 헤더 1줄 + 데이터 1줄 이상 필요해요."); return; }
+    const delim = lines[0].includes("\t") ? "\t" : ",";
+    const head = lines[0].split(delim).map(h => h.trim());
+    const data = lines.slice(1).map(line => {
+      const cells = line.split(delim);
+      const obj = {};
+      head.forEach((h,i) => obj[h] = (cells[i]||"").trim());
+      return obj;
     });
-    return out;
-  }, [labels]);
+    setHeaders(head);
+    setRows(data);
+    setMapCategory(head[0]||""); setMapName(head[1]||""); setMapValue(head[2]||"");
+    setSaveMsg("");
+  };
+
+  /* ---- 파일 업로드 파싱 (csv/xlsx) ---- */
+  const handleFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target.result, { type: "binary" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      if (json.length === 0) { setSaveMsg("파일에서 데이터를 읽지 못했어요."); return; }
+      const head = Object.keys(json[0]);
+      setHeaders(head);
+      setRows(json.map(r => { const o={}; head.forEach(h=>o[h]=String(r[h]??"")); return o; }));
+      setMapCategory(head[0]||""); setMapName(head[1]||""); setMapValue(head[2]||"");
+      setSaveMsg("");
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  /* ---- 저장 ---- */
+  const save = async () => {
+    if (!rows || !mapCategory || !mapName || !mapValue) return;
+    setBusy(true); setSaveMsg("");
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload = rows.map(r => ({
+      category: r[mapCategory],
+      item_name: r[mapName],
+      value: Number(r[mapValue]) || 0,
+      created_by: user.id,
+    })).filter(r => r.category && r.item_name);
+
+    const { error } = await supabase.from("custom_rankings").insert(payload);
+    setBusy(false);
+    if (error) { setSaveMsg("저장 실패: " + error.message); return; }
+    setSaveMsg(`${payload.length}건 저장 완료!`);
+    setRows(null); setRawText("");
+  };
+
+  /* ---- 보기 탭: 카테고리 목록 불러오기 ---- */
+  useEffect(() => {
+    if (tab !== "view") return;
+    (async () => {
+      const { data } = await supabase.from("custom_rankings").select("category");
+      const uniq = [...new Set((data||[]).map(d=>d.category))].sort();
+      setCategories(uniq);
+      if (uniq.length && !activeCategory) setActiveCategory(uniq[0]);
+    })();
+  }, [tab]);
 
   useEffect(() => {
+    if (!activeCategory) return;
     (async () => {
-      setFetchError("");
-      const { data, error } = await supabase.from("entries").select("*").eq("role", activeRole).order("created_at", { ascending: true });
-      if (error) { setFetchError(error.message); setEntries([]); return; }
-      setEntries(data || []);
+      const { data } = await supabase.from("custom_rankings").select("*").eq("category", activeCategory).order("value", { ascending: false });
+      setRankRows(data || []);
     })();
-  }, [activeRole, showForm]);
+  }, [activeCategory, tab]);
 
-  useEffect(() => {
-    (async () => {
-      const ids = [...new Set(entries.map(e => e.owner_id))];
-      if (ids.length === 0) return;
-      const { data } = await supabase.from("profiles").select("id, name").in("id", ids);
-      const map = {};
-      (data||[]).forEach(p => map[p.id] = p.name);
-      setOwnerNames(map);
-    })();
-  }, [entries]);
+  const deleteRow = async (id) => {
+    if (!window.confirm("삭제할까요?")) return;
+    await supabase.from("custom_rankings").delete().eq("id", id);
+    setRankRows(prev => prev.filter(r => r.id !== id));
+  };
 
-  const ranking = useMemo(() => {
-    const grouped = {};
-    entries.forEach(e => {
-      const key = e.owner_id;
-      if (!grouped[key]) grouped[key] = { owner_id: key, region: e.region, dept: e.dept, total: 0 };
-      grouped[key].total += e.metric;
-    });
-    return Object.values(grouped).sort((a,b)=>b.total-a.total);
-  }, [entries]);
-
-  const top3 = ranking.slice(0,3);
-  const rest = ranking.slice(3);
-  const detailEntries = detailOwner ? entries.filter(e=>e.owner_id===detailOwner) : [];
-  const canSeeDetail = isAdmin || detailOwner === profile.id;
-  const logout = () => supabase.auth.signOut();
+  const clearCategory = async () => {
+    if (!window.confirm(`"${activeCategory}" 카테고리 전체를 삭제할까요? 되돌릴 수 없어요.`)) return;
+    await supabase.from("custom_rankings").delete().eq("category", activeCategory);
+    setRankRows([]);
+    setCategories(prev => prev.filter(c => c !== activeCategory));
+    setActiveCategory(null);
+  };
 
   return (
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'Pretendard','Noto Sans KR',sans-serif",color:C.text}}>
-      <div style={{background:C.navy}} className="px-5 pt-4 pb-0">
-        <div className="flex items-center justify-between max-w-3xl mx-auto pb-4">
-          <div className="flex items-center gap-2">
-            <div style={{background:C.emerald}} className="w-8 h-8 rounded-lg flex items-center justify-center text-white">🏆</div>
-            <div>
-              <div style={{color:"#fff"}} className="text-sm font-bold leading-none">실적 랭킹</div>
-              <div style={{color:"#93A0C2"}} className="text-[11px] mt-0.5">
-                {isAdmin ? "총관리자" : `${ROLES[profile.role]?.label} · ${maskName(profile.name)}`}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!isAdmin && <button onClick={()=>setShowForm(true)} style={{background:C.emerald}} className="flex items-center gap-1 text-white text-xs font-semibold px-3 py-2 rounded-lg">＋ 실적 등록</button>}
-            <button onClick={logout} style={{color:"#93A0C2",border:"1px solid #2C3B60"}} className="text-xs px-3 py-2 rounded-lg">로그아웃</button>
-          </div>
+      <div style={{background:C.navy}} className="px-5 py-4">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div style={{color:"#fff"}} className="text-sm font-bold">📊 총관리자 데이터 입력 도구</div>
+          <button onClick={()=>supabase.auth.signOut()} style={{color:"#93A0C2",border:"1px solid #2C3B60"}} className="text-xs px-3 py-2 rounded-lg">로그아웃</button>
         </div>
-        <div className="max-w-3xl mx-auto flex gap-1">
-          {ROLE_KEYS.map(r => (
-            <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}} className="px-4 py-2.5 text-sm font-semibold rounded-t-lg"
-              style={{background:activeRole===r?C.bg:"transparent",color:activeRole===r?C.navy:"#93A0C2"}}>{ROLES[r].label}</button>
-          ))}
+        <div className="max-w-3xl mx-auto flex gap-1 mt-4">
+          <button onClick={()=>setTab("upload")} className="px-4 py-2 text-sm font-semibold rounded-t-lg" style={{background:tab==="upload"?C.bg:"transparent",color:tab==="upload"?C.navy:"#93A0C2"}}>데이터 입력</button>
+          <button onClick={()=>setTab("view")} className="px-4 py-2 text-sm font-semibold rounded-t-lg" style={{background:tab==="view"?C.bg:"transparent",color:tab==="view"?C.navy:"#93A0C2"}}>순위 보기</button>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-5 py-6">
-        {!isAdmin && (
-          <div style={{background:C.emeraldSoft,border:`1px solid ${C.emerald}22`}} className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
-            <span>🔒</span>
-            <span style={{color:C.navy}} className="text-xs">본인이 등록한 기록만 상세 조회할 수 있어요. 다른 사람의 상세 기록은 총관리자만 볼 수 있습니다.</span>
+        {tab === "upload" && (
+          <div className="flex flex-col gap-5">
+            <div style={{background:C.card,border:`1px solid ${C.border}`}} className="rounded-xl p-5">
+              <div className="font-bold mb-2" style={{color:C.navy}}>1. 텍스트로 붙여넣기</div>
+              <p style={{color:C.sub}} className="text-xs mb-2">엑셀에서 표를 복사해서 그대로 붙여넣으면 돼요 (첫 줄은 항목 이름 — 예: 분류, 이름, 값).</p>
+              <textarea value={rawText} onChange={e=>setRawText(e.target.value)} rows={6} style={{...inputStyle, fontFamily:"monospace"}} placeholder={"분류\t이름\t값\nA\t홍길동\t120\nA\t김철수\t95\nB\t이영희\t80"} />
+              <button onClick={parseText} style={{background:C.slate}} className="text-white text-xs font-bold px-4 py-2 rounded-lg mt-2">텍스트 불러오기</button>
+            </div>
+
+            <div style={{background:C.card,border:`1px solid ${C.border}`}} className="rounded-xl p-5">
+              <div className="font-bold mb-2" style={{color:C.navy}}>2. 또는 파일 업로드 (csv / xlsx)</div>
+              <input type="file" accept=".csv,.xlsx,.xls" onChange={e=>e.target.files[0] && handleFile(e.target.files[0])} />
+            </div>
+
+            {rows && (
+              <div style={{background:C.card,border:`1px solid ${C.border}`}} className="rounded-xl p-5">
+                <div className="font-bold mb-3" style={{color:C.navy}}>3. 열 매칭 확인 ({rows.length}행 인식됨)</div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <Field label="분류(카테고리) 열">
+                    <select value={mapCategory} onChange={e=>setMapCategory(e.target.value)} style={inputStyle}>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select>
+                  </Field>
+                  <Field label="이름 열">
+                    <select value={mapName} onChange={e=>setMapName(e.target.value)} style={inputStyle}>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select>
+                  </Field>
+                  <Field label="순위 매길 값(숫자) 열">
+                    <select value={mapValue} onChange={e=>setMapValue(e.target.value)} style={inputStyle}>{headers.map(h=><option key={h} value={h}>{h}</option>)}</select>
+                  </Field>
+                </div>
+                <div className="max-h-48 overflow-y-auto border rounded-lg" style={{borderColor:C.border}}>
+                  <table className="w-full text-xs">
+                    <thead style={{background:C.bg}}><tr>{headers.map(h=><th key={h} className="text-left px-2 py-1.5">{h}</th>)}</tr></thead>
+                    <tbody>
+                      {rows.slice(0,20).map((r,i)=>(
+                        <tr key={i} className="border-t" style={{borderColor:C.border}}>
+                          {headers.map(h=><td key={h} className="px-2 py-1.5">{r[h]}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {rows.length > 20 && <div style={{color:C.sub}} className="text-[11px] mt-1">...외 {rows.length-20}행 더 (미리보기는 20행까지만 표시)</div>}
+                {saveMsg && <div style={{color: saveMsg.includes("실패")?"#C23B3B":C.emerald}} className="text-xs font-semibold mt-3">{saveMsg}</div>}
+                <button onClick={save} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-3 w-full">{busy?"저장 중...":`${rows.length}건 저장하기`}</button>
+              </div>
+            )}
           </div>
         )}
-        {fetchError && <div style={{background:"#FDEDED",color:"#C23B3B"}} className="rounded-xl px-4 py-3 mb-5 text-xs">{fetchError}</div>}
 
-        <div className="flex items-center justify-between mb-1">
-          <div className="text-xs font-semibold" style={{color:C.emerald}}>{ROLES[activeRole].label} 랭킹</div>
-          <div style={{background:C.card,border:`1px solid ${C.border}`}} className="flex rounded-lg overflow-hidden">
-            <button onClick={()=>setView("top3")} className="text-xs font-semibold px-3 py-1.5" style={{background:view==="top3"?C.navy:"transparent",color:view==="top3"?"#fff":C.sub}}>🏅 TOP3</button>
-            <button onClick={()=>setView("all")} className="text-xs font-semibold px-3 py-1.5" style={{background:view==="all"?C.navy:"transparent",color:view==="all"?"#fff":C.sub}}>☰ 전체 순위</button>
-          </div>
-        </div>
-        <h1 className="text-xl font-extrabold mb-5" style={{color:C.navy}}>
-          {ROLES[activeRole].metricLabel} {view==="top3" ? `TOP ${Math.min(3,top3.length)}` : `전체 ${ranking.length}명`}
-        </h1>
-
-        {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
-
-        {view==="top3" && ranking.length>0 && <>
-          <div className="flex flex-col gap-3 mb-6">
-            {top3.map((row,i)=>{
-              const s = RANK_STYLE[i+1];
-              return (
-                <button key={row.owner_id} onClick={()=>setDetailOwner(row.owner_id)} style={{background:C.card,border:`1px solid ${C.border}`,borderLeft:`5px solid ${s.medalBg}`}} className="rounded-xl px-4 py-4 flex items-center justify-between text-left">
-                  <div className="flex items-center gap-3">
-                    <div style={{background:s.medalBg}} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-white">{MEDAL[i+1]}</div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1"><RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span></div>
-                      <div className="text-base font-extrabold" style={{color:C.navy}}>{maskName(ownerNames[row.owner_id]||"")} <span style={{color:C.sub}} className="text-xs font-medium ml-2">{i+1}등</span></div>
-                    </div>
-                  </div>
-                  <div style={{background:s.soft,color:C.navy}} className="rounded-lg px-3 py-1.5 text-right">
-                    <div className="text-[10px] font-semibold opacity-70">{ROLES[activeRole].metricLabel}</div>
-                    <div className="text-lg font-extrabold leading-tight">{row.total}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {rest.length>0 && <>
-            <h2 className="text-sm font-bold mb-3" style={{color:C.navy}}>4~{ranking.length}위</h2>
-            <RankList rows={rest} startRank={4} names={ownerNames} onSelect={setDetailOwner} />
-          </>}
-        </>}
-        {view==="all" && ranking.length>0 && <RankList rows={ranking} startRank={1} names={ownerNames} onSelect={setDetailOwner} highlightTop3 />}
-      </div>
-
-      {detailOwner && (
-        <DetailModal
-          owner={ownerNames[detailOwner]||"?"}
-          region={ranking.find(r=>r.owner_id===detailOwner)?.region}
-          dept={ranking.find(r=>r.owner_id===detailOwner)?.dept}
-          roleLabel={ROLES[activeRole].label}
-          entries={detailEntries}
-          allowed={canSeeDetail}
-          onClose={()=>setDetailOwner(null)}
-        />
-      )}
-      {showForm && <EntryForm profile={profile} roles={ROLES} onClose={()=>setShowForm(false)} onSubmitted={()=>setShowForm(false)} />}
-    </div>
-  );
-}
-
-function RankList({ rows, startRank, names, onSelect, highlightTop3 }) {
-  return (
-    <div style={{background:C.card,border:`1px solid ${C.border}`}} className="rounded-xl divide-y">
-      {rows.map((row,i)=>{
-        const rank = startRank+i;
-        const medal = highlightTop3 ? RANK_STYLE[rank] : null;
-        return (
-          <button key={row.owner_id} onClick={()=>onSelect(row.owner_id)} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-black/[0.02]">
-            <div className="flex items-center gap-3">
-              <span style={{color:medal?"#fff":C.sub,background:medal?medal.medalBg:"transparent"}} className="text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0">{rank}</span>
-              <RegionTag region={row.region} />
-              <span className="text-sm font-semibold" style={{color:C.text}}>{maskName(names[row.owner_id]||"")}</span>
-              <span style={{color:C.sub}} className="text-xs">{deptLabel(row.dept)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span style={{color:C.emerald}} className="text-sm font-bold">{row.total}</span>
-              <span style={{color:C.sub}}>›</span>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function DetailModal({ owner, region, dept, roleLabel, entries, allowed, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
-      <div style={{background:C.card}} className="w-full max-w-md rounded-t-2xl md:rounded-2xl max-h-[85vh] flex flex-col overflow-hidden">
-        <div style={{background:C.card,borderBottom:`1px solid ${C.border}`}} className="flex items-start justify-between px-5 py-4 flex-shrink-0">
+        {tab === "view" && (
           <div>
-            <div className="flex items-center gap-2 mb-1"><RegionTag region={region} /><span style={{color:C.sub}} className="text-xs font-semibold">{deptLabel(dept)}</span></div>
-            <div className="text-lg font-extrabold" style={{color:C.navy}}>{maskName(owner)} <span style={{color:C.sub}} className="text-xs font-medium">· {roleLabel}</span></div>
-          </div>
-          <button onClick={onClose} style={{background:C.bg}} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">✕</button>
-        </div>
-        <div className="overflow-y-auto px-5 py-4">
-          {!allowed ? (
-            <div style={{border:`1px solid ${C.border}`}} className="rounded-xl py-8 text-center px-4">
-              <div className="mb-2">🔒</div>
-              <div style={{color:C.sub}} className="text-sm">다른 사람의 상세 기록은 총관리자만 볼 수 있어요.</div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <div style={{color:C.sub}} className="text-xs font-semibold mb-1">총 {entries.length}건</div>
-              {entries.map(e=>(
-                <div key={e.id} style={{border:`1px solid ${C.border}`}} className="rounded-lg px-3 py-2.5 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold" style={{color:C.text}}>{maskName(e.target_name)}</div>
-                    <div style={{color:C.sub}} className="text-xs font-mono">{e.phone_masked}</div>
-                  </div>
-                  <div className="text-right">
-                    <div style={{color:C.emerald}} className="text-sm font-bold">{e.metric}</div>
-                    <div style={{color:C.sub}} className="text-[11px]">{new Date(e.created_at).toISOString().slice(0,10)}</div>
-                  </div>
+            {categories.length === 0 ? (
+              <div style={{border:`1px dashed ${C.border}`,color:C.sub}} className="rounded-xl py-8 text-center text-sm">아직 저장된 데이터가 없어요. "데이터 입력" 탭에서 먼저 넣어주세요.</div>
+            ) : (
+              <>
+                <div className="flex gap-1 mb-4 flex-wrap">
+                  {categories.map(c => (
+                    <button key={c} onClick={()=>setActiveCategory(c)} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{background:activeCategory===c?C.navy:C.card,color:activeCategory===c?"#fff":C.sub,border:`1px solid ${C.border}`}}>{c}</button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div style={{borderTop:`1px solid ${C.border}`}} className="px-5 py-3 flex-shrink-0">
-          <button onClick={onClose} style={{background:C.navy}} className="w-full text-white font-bold py-2.5 rounded-xl text-sm">뒤로가기</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EntryForm({ profile, roles, onClose, onSubmitted }) {
-  const [dept, setDept] = useState(profile.dept || DEPT_KEYS[0]);
-  const [region, setRegion] = useState(profile.region || REGIONS[0]);
-  const [targetName, setTargetName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [metric, setMetric] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const role = profile.role;
-  const isManual = roles[role]?.metricType === "manual";
-
-  const submit = async () => {
-    if (!targetName || !phone) return;
-    setBusy(true); setError("");
-    const { error } = await supabase.from("entries").insert({
-      owner_id: profile.id, role, region, dept,
-      target_name: targetName,
-      phone_masked: maskPhone(phone),
-      metric: isManual ? Number(metric||0) : 1,
-    });
-    setBusy(false);
-    if (error) { setError(error.message); return; }
-    onSubmitted();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
-      <div style={{background:C.card}} className="w-full max-w-md rounded-t-2xl md:rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-lg font-extrabold" style={{color:C.navy}}>실적 등록 · {roles[role]?.label}</div>
-          <button onClick={onClose}>✕</button>
-        </div>
-        <div className="flex flex-col gap-3">
-          <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
-          <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
-          <Field label="본인 이름"><input value={profile.name} disabled style={{...inputStyle,color:C.sub,background:C.bg}} /></Field>
-          <Field label="프루트 이름"><input value={targetName} onChange={e=>setTargetName(e.target.value)} style={inputStyle} /></Field>
-          <Field label="번호"><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} /></Field>
-          {isManual && <Field label={roles[role]?.metricLabel}><input type="number" value={metric} onChange={e=>setMetric(e.target.value)} style={inputStyle} /></Field>}
-          {error && <div style={{color:"#C23B3B"}} className="text-xs font-semibold">{error}</div>}
-          <button onClick={submit} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-1">{busy?"등록 중...":"등록하기"}</button>
-        </div>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-extrabold" style={{color:C.navy}}>{activeCategory} 순위 ({rankRows.length}건)</h2>
+                  <button onClick={clearCategory} style={{color:"#C23B3B"}} className="text-xs font-semibold">이 분류 전체 삭제</button>
+                </div>
+                <div style={{background:C.card,border:`1px solid ${C.border}`}} className="rounded-xl divide-y">
+                  {rankRows.map((r,i) => {
+                    const rank = i+1;
+                    const medal = RANK_STYLE[rank];
+                    return (
+                      <div key={r.id} className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span style={{color:medal?"#fff":C.sub,background:medal?medal.medalBg:"transparent"}} className="text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0">{medal?MEDAL[rank]:rank}</span>
+                          <span className="text-sm font-semibold">{r.item_name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span style={{color:C.emerald}} className="text-sm font-bold">{r.value}</span>
+                          <button onClick={()=>deleteRow(r.id)} style={{color:C.sub}} className="text-xs">삭제</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
