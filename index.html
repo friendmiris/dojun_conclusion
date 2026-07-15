@@ -414,17 +414,25 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
         {ROLE_KEYS.length === 0 ? (
           <EmptyState text={isAdmin ? "아직 카테고리가 없어요. 아래 버튼으로 추가해보세요." : "아직 등록된 카테고리가 없어요. 총관리자에게 문의해주세요."} />
         ) : (
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 mb-3">
             {ROLE_KEYS.map((r,i) => {
               const active = activeRole === r;
               return (
                 <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}}
                   style={{
-                    background: active ? `linear-gradient(135deg, ${C.wineBright}, ${C.wine})` : C.ink,
+                    background: active
+                      ? `linear-gradient(180deg, ${C.wineBright} 0%, ${C.wine} 100%)`
+                      : `linear-gradient(180deg, ${C.inkSoft} 0%, ${C.ink} 100%)`,
                     color: active ? C.goldBright : C.sub,
-                    border: `1px solid ${active ? C.amberLine : C.border}`,
+                    border: `1.5px solid ${active ? C.amberLine : C.border}`,
+                    boxShadow: active
+                      ? `0 3px 10px #00000066, inset 0 1px 0 ${C.amberLine}66, 0 0 14px ${C.amber}33`
+                      : `inset 0 1px 0 #ffffff0d`,
                   }}
-                  className="text-[13px] font-bold px-4 py-2 rounded-full">{ROLES[r].label}</button>
+                  className="text-[13px] font-bold px-5 py-2 rounded-lg relative">
+                  {active && <span style={{color:C.amberLine}} className="mr-1">◆</span>}
+                  {ROLES[r].label}
+                </button>
               );
             })}
           </div>
@@ -460,7 +468,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
 
           {view==="top3" && ranking.length>0 && <>
-            <div className="flex flex-col md:flex-row md:items-stretch gap-3 md:gap-4 mb-7 justify-center">
+            <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-4 mb-7 justify-center pt-3">
               {top3.map((row,i)=>{
                 const orderClass = i===0 ? "order-1 md:order-2" : i===1 ? "order-2 md:order-1" : "order-3 md:order-3";
                 const widthClass = i===0 ? "md:flex-[1.15]" : "md:flex-1";
@@ -574,23 +582,45 @@ function LogoMark() {
 
 function ScoreRow({ rank, row, name, metricLabel, maxValue, big, onClick }) {
   const tone = rank===1
-    ? { bar:C.amber, chip:C.amber, chipText:C.ink, edge:C.amberLine, glow:`${C.amber}33`, icon:"👑" }
+    ? { bar:C.amber, chip:C.amber, chipRing:C.goldBright, chipText:C.ink, edge:C.amberLine, glow:`${C.amber}44`, bgTint:C.amber, medal:"👑" }
     : rank===2
-    ? { bar:C.steel, chip:C.steelSoft, chipText:C.text, edge:C.steel, glow:`${C.steel}22`, icon:"🥈" }
-    : { bar:C.copper, chip:C.copperSoft, chipText:C.text, edge:C.copper, glow:`${C.copper}22`, icon:"🥉" };
+    ? { bar:C.steel, chip:C.steel, chipRing:"#C7CEE6", chipText:C.ink, edge:C.steel, glow:`${C.steel}33`, bgTint:C.steel, medal:"🥈" }
+    : { bar:C.copper, chip:C.copper, chipRing:"#E2A574", chipText:C.ink, edge:C.copper, glow:`${C.copper}33`, bgTint:C.copper, medal:"🥉" };
   const pct = Math.max(6, Math.round((row.total / (maxValue||1)) * 100));
   return (
     <button onClick={onClick}
       style={{
-        background: rank===1 ? `linear-gradient(160deg, ${C.card}, ${C.wine}55)` : C.card,
+        background: `linear-gradient(160deg, ${C.card}, ${tone.bgTint}22 60%, ${C.card})`,
         border: `1px solid ${tone.edge}`,
-        boxShadow: `0 0 24px ${tone.glow}`,
+        boxShadow: `0 0 28px ${tone.glow}, inset 0 0 40px ${tone.bgTint}11`,
         height: "100%",
       }}
-      className={`w-full h-full text-left rounded-2xl overflow-hidden flex flex-col justify-center ${big?"px-5 pt-5 pb-5":"px-4 pt-4 pb-4"}`}>
-      <div className="flex items-center justify-between mb-2">
+      className={`relative w-full h-full text-left rounded-2xl overflow-visible flex flex-col justify-center ${big?"px-5 pt-6 pb-5":"px-4 pt-5 pb-4"}`}>
+      {/* 금장 코너 장식 */}
+      <CornerOrnament className="absolute top-2 left-2" />
+      <CornerOrnament className="absolute top-2 right-2" flip="x" />
+      <CornerOrnament className="absolute bottom-2 left-2" flip="y" />
+      <CornerOrnament className="absolute bottom-2 right-2" flip="xy" />
+
+      {/* 상단 중앙 메달 배지 + 술 장식 */}
+      <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
+        <div style={{
+            background: `radial-gradient(circle at 35% 30%, ${tone.chipRing}, ${tone.chip} 70%)`,
+            border: `2px solid ${tone.chipRing}`,
+            boxShadow: `0 3px 10px #00000066, 0 0 12px ${tone.glow}`,
+          }} className={`rounded-full flex items-center justify-center flex-shrink-0 ${big?"w-12 h-12 text-xl":"w-9 h-9 text-base"}`}>
+          <span style={{fontFamily:FONT_DISPLAY,color:tone.chipText}}>{rank}</span>
+        </div>
+        <div className="flex gap-0.5 -mt-0.5">
+          <div style={{background:tone.bar,clipPath:"polygon(0 0,100% 0,50% 100%)"}} className="w-1.5 h-2.5" />
+          <div style={{background:tone.chipRing,clipPath:"polygon(0 0,100% 0,50% 100%)"}} className="w-1.5 h-3.5" />
+          <div style={{background:tone.bar,clipPath:"polygon(0 0,100% 0,50% 100%)"}} className="w-1.5 h-2.5" />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-2 mt-2">
         <div className="flex items-center gap-2.5">
-          <span style={{background:tone.chip,color:tone.chipText,fontFamily:FONT_DISPLAY,border:`1px solid ${tone.edge}`}} className={`flex items-center justify-center rounded-full font-bold flex-shrink-0 ${big?"w-10 h-10 text-lg":"w-7 h-7 text-sm"}`}>{tone.icon}</span>
+          <span style={{fontSize: big?26:20}}>{tone.medal}</span>
           <div>
             <div className="flex items-center gap-1.5 mb-0.5"><RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span></div>
             <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className={big?"text-xl":"text-[15px] font-extrabold"}>{name}</div>
