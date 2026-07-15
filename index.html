@@ -468,18 +468,28 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
 
           {view==="top3" && ranking.length>0 && <>
-            <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-4 mb-7 justify-center pt-3">
+            {/* 데스크톱/태블릿: 틀 이미지 위에 실제 데이터 오버레이 */}
+            <div className="hidden md:block relative mb-7 pt-3" style={{aspectRatio:"1280/164", background:`url(${siteTexts.top3_frame_url || "top3-frame.png"}) center bottom / 100% 161% no-repeat`}}>
               {top3.map((row,i)=>{
-                const orderClass = i===0 ? "order-1 md:order-2" : i===1 ? "order-2 md:order-1" : "order-3 md:order-3";
-                const widthClass = i===0 ? "md:flex-[1.15]" : "md:flex-1";
+                const posClass = i===0 ? "left-[38%] w-[24%] top-[2%] h-[92%]" : i===1 ? "left-[12%] w-[25%] top-[10%] h-[80%]" : "left-[63%] w-[25%] top-[10%] h-[80%]";
                 return (
-                  <div key={row.key} className={`${orderClass} ${widthClass}`}>
-                    <ScoreRow rank={i+1} row={row} name={maskName(displayName(row))}
-                      metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
-                      big={i===0} onClick={()=>setDetailOwner(row.key)} />
-                  </div>
+                  <button key={row.key} onClick={()=>setDetailOwner(row.key)} className={`absolute ${posClass} flex flex-col items-center justify-end pb-[6%] text-center`}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[10px] font-semibold">{deptLabel(row.dept)}</span>
+                    </div>
+                    <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className={i===0?"text-lg":"text-base"}>{maskName(displayName(row))}</div>
+                    <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY}} className={i===0?"text-2xl":"text-lg"}>{row.total}<span style={{color:C.sub,fontFamily:FONT_BODY}} className="text-[10px] ml-1">{ROLES[activeRole].metricLabel}</span></div>
+                  </button>
                 );
               })}
+            </div>
+            {/* 모바일: 카드형 세로 배치 */}
+            <div className="flex flex-col md:hidden gap-6 mb-7 pt-3">
+              {top3.map((row,i)=>(
+                <ScoreRow key={row.key} rank={i+1} row={row} name={maskName(displayName(row))}
+                  metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
+                  big={i===0} onClick={()=>setDetailOwner(row.key)} />
+              ))}
             </div>
             {rest.length>0 && <>
               <h3 style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xs font-bold mb-3 tracking-wide">4 – {ranking.length}위</h3>
@@ -1078,6 +1088,13 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
                 <button onClick={()=>resetPoster("bg_image_url")} disabled={uploadingKey==="bg_image_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
               </div>
               {uploadingKey==="bg_image_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
+            </Field>
+            <Field label="TOP3 카드 틀 이미지 (PC 화면용, 1280x264 권장)">
+              <div className="flex items-center gap-2">
+                <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "top3_frame_url")} disabled={uploadingKey==="top3_frame_url"} />
+                <button onClick={()=>resetPoster("top3_frame_url")} disabled={uploadingKey==="top3_frame_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
+              </div>
+              {uploadingKey==="top3_frame_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
             </Field>
           </div>
         </div>
