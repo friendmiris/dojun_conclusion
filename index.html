@@ -62,6 +62,17 @@ function maskPhone(phone) {
   return phone;
 }
 
+// 이름+번호를 등록 순간(마스킹 전)에 해시로만 남겨서, 원본 저장 없이 중복 등록을 판별
+async function dedupFingerprint(name, phone) {
+  const normName = (name || "").trim().replace(/\s+/g, "");
+  const normPhone = (phone || "").replace(/[^0-9]/g, "");
+  if (!normName || !normPhone) return null;
+  const salt = "wanggaebeobsang-dedup-v1"; // 고정 salt: 무지개표 대조를 조금이라도 어렵게 함
+  const data = new TextEncoder().encode(`${salt}:${normName}:${normPhone}`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
 // 지역/부서는 이제 DB(regions/depts 테이블)에서 관리됨. 이 맵들은 App에서 fetch 후 채워짐.
 let REGION_LABEL_MAP = {};
 let DEPT_LABEL_MAP = {};
@@ -351,7 +362,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
         key, owner_id: e.owner_id, owner_name: e.owner_name,
         region: p?.region || e.region, dept: p?.dept || e.dept, total: 0,
       };
-      grouped[key].total += e.metric;
+      if (!e.is_duplicate) grouped[key].total += e.metric; // 중복 건은 점수에서 제외
     });
     return Object.values(grouped).sort((a,b)=>b.total-a.total);
   }, [entries, ownerProfiles]);
@@ -755,7 +766,10 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
                   ) : (
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-sm font-semibold" style={{color:C.text}}>{e.target_name || "(대상자 정보 없음, 일괄등록)"}</div>
+                        <div className="text-sm font-semibold flex items-center gap-1.5" style={{color:C.text}}>
+                          {e.target_name || "(대상자 정보 없음, 일괄등록)"}
+                          {e.is_duplicate && <span style={{background:`${C.danger}22`,color:C.danger,border:`1px solid ${C.danger}55`}} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full">⚠ 중복</span>}
+                        </div>
                         <div style={{color:C.sub}} className="text-xs font-mono">{e.phone_masked}</div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -837,20 +851,60 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
   const save = async () => {
     if (!rows || !mapName) return;
     setBusy(true); setMsg("");
-    const payload = rows.map(r => ({
-      role,
-      region: mapRegion ? r[mapRegion] : null,
-      dept: mapDept ? r[mapDept] : null,
-      owner_name: maskName(r[mapName] || ""),
-      target_name: mapTarget ? maskName(r[mapTarget] || "") : null,
-      phone_masked: mapPhone ? maskPhone(r[mapPhone]) : null,
-      metric: mapValue ? (Number(r[mapValue]) || 1) : 1,
-    })).filter(r => r.owner_name);
+
+    // 대상자 이름+번호 열이 모두 매핑된 경우에만 중복 지문 계산
+    const canDedup = !!(mapTarget && mapPhone);
+    const fingerprints = canDedup
+      ? await Promise.all(rows.map(r => dedupFingerprint(r[mapTarget], r[mapPhone])))
+      : rows.map(() => null);
+
+    let existingMap = {};
+    if (canDedup) {
+      const hashes = [...new Set(fingerprints.filter(Boolean))];
+      if (hashes.length > 0) {
+        const { data: existing } = await supabase.from("entries")
+          .select("id, dedup_hash, created_at")
+          .eq("role", role).eq("is_duplicate", false).in("dedup_hash", hashes);
+        (existing || []).forEach(e => {
+          if (!existingMap[e.dedup_hash] || new Date(e.created_at) < new Date(existingMap[e.dedup_hash].created_at)) {
+            existingMap[e.dedup_hash] = e;
+          }
+        });
+      }
+    }
+
+    const seenInBatch = {};
+    let dupCount = 0;
+    const payload = rows.map((r, i) => {
+      const fp = fingerprints[i];
+      let isDup = false, dupOfId = null;
+      if (fp) {
+        if (existingMap[fp]) { isDup = true; dupOfId = existingMap[fp].id; }
+        else if (seenInBatch[fp]) { isDup = true; } // 같은 배치 안에서도 중복
+        seenInBatch[fp] = true;
+      }
+      if (isDup) dupCount++;
+      return {
+        role,
+        region: mapRegion ? r[mapRegion] : null,
+        dept: mapDept ? r[mapDept] : null,
+        owner_name: maskName(r[mapName] || ""),
+        target_name: mapTarget ? maskName(r[mapTarget] || "") : null,
+        phone_masked: mapPhone ? maskPhone(r[mapPhone]) : null,
+        metric: mapValue ? (Number(r[mapValue]) || 1) : 1,
+        dedup_hash: fp, is_duplicate: isDup, duplicate_of: dupOfId,
+      };
+    }).filter(r => r.owner_name);
+
+    if (dupCount > 0) {
+      const proceed = window.confirm(`${dupCount}건이 이미 등록된 대상자와 중복돼요. 그래도 전부 등록할까요? (중복 건은 "중복"으로 표시되고, 먼저 등록된 기록이 우선순위예요)`);
+      if (!proceed) { setBusy(false); return; }
+    }
 
     const { error } = await supabase.from("entries").insert(payload);
     setBusy(false);
     if (error) { setMsg("저장 실패: " + error.message); return; }
-    setMsg(`✅ ${payload.length}건 저장 완료!`);
+    setMsg(`✅ ${payload.length}건 저장 완료!${dupCount>0?` (중복 ${dupCount}건 포함)`:""}`);
     setRows(null); setRawText("");
     onSaved();
   };
@@ -1220,11 +1274,31 @@ function EntryForm({ profile, roles, regionRows, deptRows, onClose, onSubmitted 
   const submit = async () => {
     if (!targetName || !phone) return;
     setBusy(true); setError("");
+
+    const fp = await dedupFingerprint(targetName, phone);
+    let isDup = false, dupOfId = null;
+    if (fp) {
+      const { data: existing } = await supabase.from("entries")
+        .select("id, target_name, created_at")
+        .eq("role", role).eq("dedup_hash", fp).eq("is_duplicate", false)
+        .order("created_at", { ascending: true }).limit(1);
+      if (existing && existing.length > 0) {
+        const first = existing[0];
+        const proceed = window.confirm(
+          `이미 같은 대상자가 등록되어 있어요 (${first.target_name}, ${new Date(first.created_at).toISOString().slice(0,10)} 최초 등록).\n` +
+          `그래도 등록하시겠어요? (먼저 등록한 기록이 우선순위로 처리되고, 이번 건은 "중복"으로 표시돼요)`
+        );
+        if (!proceed) { setBusy(false); return; }
+        isDup = true; dupOfId = first.id;
+      }
+    }
+
     const { error } = await supabase.from("entries").insert({
       owner_id: profile.id, role, region, dept,
       target_name: maskName(targetName), // 원본은 저장하지 않고 마스킹된 값만 저장
       phone_masked: maskPhone(phone),
       metric: isManual ? Number(metric||0) : 1,
+      dedup_hash: fp, is_duplicate: isDup, duplicate_of: dupOfId,
     });
     setBusy(false);
     if (error) { setError(error.message); return; }
