@@ -470,24 +470,23 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           {view==="top3" && ranking.length>0 && <>
             {/* 데스크톱/태블릿: 틀 이미지 위에 실제 데이터 오버레이 */}
             <div className="hidden md:block relative mb-7 pt-3">
-              <div style={{width:"100%", paddingBottom:"12.8125%", background:`url(${siteTexts.top3_frame_url || "top3-frame.png"}) center bottom / 100% 161% no-repeat`, position:"relative"}}>
-                <div className="absolute inset-0">
-                  {top3.map((row,i)=>{
-                    const posClass = i===0 ? "left-[38%] w-[24%] top-[2%] h-[92%]" : i===1 ? "left-[12%] w-[25%] top-[10%] h-[80%]" : "left-[63%] w-[25%] top-[10%] h-[80%]";
-                    const padTop = i===0 ? "pt-[42%]" : "pt-[46%]";
-                    return (
-                      <button key={row.key} onClick={()=>setDetailOwner(row.key)} className={`absolute ${posClass} ${padTop} flex flex-col items-center text-center px-2`}>
-                        <div className="flex items-center gap-1.5">
-                          <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span>
-                        </div>
-                        <div style={{color:C.text,fontFamily:"'Nanum Myeongjo', serif",textShadow:"0 2px 6px #00000099"}} className={`font-extrabold leading-tight mt-2 ${i===0?"text-2xl":"text-xl"}`}>{maskName(displayName(row))}</div>
-                        <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY,textShadow:"0 2px 8px #00000099"}} className={`leading-none mt-2.5 ${i===0?"text-4xl":"text-[28px]"}`}>
-                          {row.total}<span style={{color:C.sub,fontFamily:FONT_BODY}} className="text-xs font-semibold ml-1.5">{ROLES[activeRole].metricLabel}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+              <img src={siteTexts.top3_frame_url || "top3-cards-only.png"} alt="TOP3" className="w-full h-auto block rounded-2xl" />
+              <div className="absolute inset-0">
+                {top3.map((row,i)=>{
+                  const posClass = i===0 ? "left-[38%] w-[24%] top-[2%] h-[92%]" : i===1 ? "left-[12%] w-[25%] top-[10%] h-[80%]" : "left-[63%] w-[25%] top-[10%] h-[80%]";
+                  const padTop = i===0 ? "pt-[42%]" : "pt-[46%]";
+                  return (
+                    <button key={row.key} onClick={()=>setDetailOwner(row.key)} className={`absolute ${posClass} ${padTop} flex flex-col items-center text-center px-2`}>
+                      <div className="flex items-center gap-1.5">
+                        <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span>
+                      </div>
+                      <div style={{color:C.text,fontFamily:"'Nanum Myeongjo', serif",textShadow:"0 2px 6px #00000099"}} className={`font-extrabold leading-tight mt-2 ${i===0?"text-2xl":"text-xl"}`}>{maskName(displayName(row))}</div>
+                      <div style={{color:C.goldBright,fontFamily:FONT_DISPLAY,textShadow:"0 2px 8px #00000099"}} className={`leading-none mt-2.5 ${i===0?"text-4xl":"text-[28px]"}`}>
+                        {row.total}<span style={{color:C.sub,fontFamily:FONT_BODY}} className="text-xs font-semibold ml-1.5">{ROLES[activeRole].metricLabel}</span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             {/* 모바일: 카드형 세로 배치 */}
