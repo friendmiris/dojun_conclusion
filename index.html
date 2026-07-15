@@ -298,7 +298,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
   const [showRegionDeptManager, setShowRegionDeptManager] = useState(false);
   const [view, setView] = useState("top3");
   const [fetchError, setFetchError] = useState("");
-  const [ownerNames, setOwnerNames] = useState({});
+  const [ownerProfiles, setOwnerProfiles] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isAdmin = profile.role === "관리자";
@@ -323,24 +323,28 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
   useEffect(() => {
     (async () => {
       const ids = [...new Set(entries.map(e => e.owner_id).filter(Boolean))];
-      if (ids.length === 0) return;
-      const { data } = await supabase.from("profiles").select("id, name").in("id", ids);
+      if (ids.length === 0) { setOwnerProfiles({}); return; }
+      const { data } = await supabase.from("profiles").select("id, name, region, dept").in("id", ids);
       const map = {};
-      (data||[]).forEach(p => map[p.id] = p.name);
-      setOwnerNames(map);
+      (data||[]).forEach(p => map[p.id] = p);
+      setOwnerProfiles(map);
     })();
-  }, [entries]);
+  }, [entries, refreshKey]);
 
   const ranking = useMemo(() => {
     const grouped = {};
     entries.forEach(e => {
       const key = e.owner_id || ("name:" + e.owner_name);
-      if (!grouped[key]) grouped[key] = { key, owner_id: e.owner_id, owner_name: e.owner_name, region: e.region, dept: e.dept, total: 0 };
+      const p = e.owner_id ? ownerProfiles[e.owner_id] : null;
+      if (!grouped[key]) grouped[key] = {
+        key, owner_id: e.owner_id, owner_name: e.owner_name,
+        region: p?.region || e.region, dept: p?.dept || e.dept, total: 0,
+      };
       grouped[key].total += e.metric;
     });
     return Object.values(grouped).sort((a,b)=>b.total-a.total);
-  }, [entries]);
-  const displayName = (row) => (row.owner_id ? ownerNames[row.owner_id] : row.owner_name) || "";
+  }, [entries, ownerProfiles]);
+  const displayName = (row) => (row.owner_id ? (ownerProfiles[row.owner_id]?.name) : row.owner_name) || "";
 
   const top3 = ranking.slice(0,3);
   const rest = ranking.slice(3);
