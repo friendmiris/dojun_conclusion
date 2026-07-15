@@ -226,7 +226,7 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
   };
   const signUp = async () => {
     setError(""); setNotice(""); setBusy(true);
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { name, role, region, dept } } });
+    const { error } = await supabase.auth.signUp({ email, password, options: { data: { name: maskName(name), role, region, dept } } });
     setBusy(false);
     if (error) { setError(error.message); return; }
     setNotice("가입 완료! 이메일 인증이 필요할 수 있어요. 인증 후 로그인해주세요.");
@@ -247,7 +247,7 @@ function AuthScreen({ siteTexts, regionRows, deptRows }) {
         backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
         minHeight: "100vh",
       }} className="relative">
-      <div style={{background:`radial-gradient(circle at 20% 80%, ${C.wine}33 0%, transparent 45%), linear-gradient(180deg, ${C.bg}CC 0%, ${C.ink}DD 55%, #050307EE 100%)`}} className="absolute inset-0" />
+      <div style={{background:`radial-gradient(circle at 20% 80%, ${C.wine}44 0%, transparent 55%), linear-gradient(180deg, ${C.bg}55 0%, ${C.ink}77 55%, #05030799 100%)`}} className="absolute inset-0" />
       <div style={{fontFamily:FONT_BODY}} className="relative z-10 flex items-center justify-center px-5 py-10 min-h-screen">
       <div className="w-full max-w-sm">
         <PosterPanel title={siteTexts.hero_title || "누가 왕이 될 상인가"} subtitle={siteTexts.hero_subtitle || "왕의 자리는 당신의 것"} compact imgSrc={siteTexts.poster_login_url || "poster-login.png"} />
@@ -366,7 +366,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
 
   return (
     <div style={{
-        backgroundImage: `radial-gradient(circle at 15% 10%, ${C.wine}33 0%, transparent 35%), radial-gradient(circle at 85% 20%, ${C.amber}22 0%, transparent 30%), linear-gradient(180deg, ${C.bg}CC 0%, ${C.ink}EE 100%), url(${siteTexts.bg_image_url || "bg-palace.png"})`,
+        backgroundImage: `radial-gradient(circle at 15% 10%, ${C.wine}44 0%, transparent 40%), radial-gradient(circle at 85% 20%, ${C.amber}33 0%, transparent 35%), linear-gradient(180deg, ${C.bg}55 0%, ${C.ink}88 100%), url(${siteTexts.bg_image_url || "bg-palace.png"})`,
         backgroundSize: "auto, auto, auto, cover",
         backgroundPosition: "center, center, center, center",
         backgroundRepeat: "no-repeat, no-repeat, no-repeat, no-repeat",
@@ -660,7 +660,7 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
 
   const saveProfile = async () => {
     setPBusy(true); setPMsg("");
-    const { error } = await supabase.from("profiles").update({ name: pName, region: pRegion, dept: pDept }).eq("id", ownerId);
+    const { error } = await supabase.from("profiles").update({ name: maskName(pName), region: pRegion, dept: pDept }).eq("id", ownerId);
     setPBusy(false);
     if (error) { setPMsg("저장 실패: " + error.message); return; }
     setPMsg("✅ 저장했어요.");
@@ -710,7 +710,7 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
                 <button onClick={()=>{setEditingProfile(true); setPName(owner); setPRegion(region); setPDept(dept);}} style={{color:C.slate}} className="text-xs font-bold w-full text-left">✏️ 직원 정보(이름·지역·부서) 수정</button>
               ) : (
                 <div className="flex flex-col gap-2">
-                  <Field label="이름 (원본)"><input value={pName} onChange={e=>setPName(e.target.value)} style={{...inputStyle,padding:"6px 8px",fontSize:13}} /></Field>
+                  <Field label="이름 (저장 시 자동 마스킹돼요)"><input value={pName} onChange={e=>setPName(e.target.value)} style={{...inputStyle,padding:"6px 8px",fontSize:13}} /></Field>
                   <div className="grid grid-cols-2 gap-2">
                     <Field label="지역">
                       <select value={pRegion||""} onChange={e=>setPRegion(e.target.value)} style={{...inputStyle,padding:"6px 8px",fontSize:13}}>
