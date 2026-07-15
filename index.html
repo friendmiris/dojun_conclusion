@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>실적 랭킹</title>
+<title>누가 왕이 될 상인가</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Jua&display=swap" rel="stylesheet">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
@@ -61,8 +61,6 @@ function maskPhone(phone) {
   return phone;
 }
 
-const ROLE_KEYS = ["ROLE_1", "ROLE_2", "ROLE_3", "ROLE_4"];
-const ROLE_METRIC_TYPE = { ROLE_1: "count", ROLE_2: "count", ROLE_3: "count", ROLE_4: "count" };
 const REGIONS = ["본부", "북구", "광산"];
 const DEPT_KEYS = ["DEPT_A","DEPT_B","DEPT_C","DEPT_D","DEPT_E","DEPT_F","DEPT_G","DEPT_H","DEPT_I"];
 const deptLabel = (k) => k;
@@ -85,7 +83,7 @@ function EmptyState({ text }) {
 function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [labels, setLabels] = useState(null);
+  const [labelRows, setLabelRows] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
 
@@ -98,16 +96,18 @@ function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  const loadLabels = async () => {
+    const { data } = await supabase.from("labels").select("*").order("sort_order", { ascending: true });
+    setLabelRows(data || []);
+  };
+
   useEffect(() => {
     if (!session) { setProfile(null); setLoading(false); return; }
     (async () => {
       setLoading(true);
       const { data: p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
       setProfile(p);
-      const { data: labelRows } = await supabase.from("labels").select("*");
-      const map = {};
-      (labelRows||[]).forEach(l => map[l.role_key] = l);
-      setLabels(map);
+      await loadLabels();
       setLoading(false);
     })();
   }, [session]);
@@ -115,7 +115,7 @@ function App() {
   if (recoveryMode) return <ResetPasswordScreen onDone={() => setRecoveryMode(false)} />;
   if (loading && session) return <div style={{background:C.bg,minHeight:"100vh"}} />;
   if (!session || !profile) return <AuthScreen />;
-  return <Dashboard profile={profile} labels={labels} />;
+  return <Dashboard profile={profile} labelRows={labelRows||[]} onLabelsChanged={loadLabels} />;
 }
 
 function ResetPasswordScreen({ onDone }) {
@@ -161,12 +161,21 @@ function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("ROLE_1");
+  const [roleOptions, setRoleOptions] = useState([]);
+  const [role, setRole] = useState("");
   const [region, setRegion] = useState(REGIONS[0]);
   const [dept, setDept] = useState(DEPT_KEYS[0]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("labels").select("*").order("sort_order", { ascending: true });
+      setRoleOptions(data || []);
+      if (data && data.length) setRole(data[0].role_key);
+    })();
+  }, []);
 
   const signIn = async () => {
     setError(""); setBusy(true);
@@ -196,7 +205,7 @@ function AuthScreen() {
       <div style={{background:C.card}} className="w-full max-w-sm rounded-3xl p-7">
         <div className="flex items-center gap-2.5 mb-1">
           <LogoMark />
-          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">실적 랭킹</div>
+          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">누가 왕이 될 상인가</div>
         </div>
         <div style={{background:C.bg}} className="flex gap-1 my-5 p-1 rounded-full">
           <button onClick={()=>setMode("signin")} style={{background:mode==="signin"?C.ink:"transparent",color:mode==="signin"?"#fff":C.sub}} className="flex-1 py-2 rounded-full text-sm font-bold">로그인</button>
@@ -207,7 +216,7 @@ function AuthScreen() {
           <Field label="비밀번호"><input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={inputStyle} /></Field>
           {mode==="signup" && <>
             <Field label="이름"><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} /></Field>
-            <Field label="역할"><select value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}>{ROLE_KEYS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
+            <Field label="역할"><select value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}>{roleOptions.map(r=><option key={r.role_key} value={r.role_key}>{r.display_name}</option>)}</select></Field>
             <Field label="지역"><select value={region} onChange={e=>setRegion(e.target.value)} style={inputStyle}>{REGIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></Field>
             <Field label="부서"><select value={dept} onChange={e=>setDept(e.target.value)} style={inputStyle}>{DEPT_KEYS.map(d=><option key={d} value={d}>{d}</option>)}</select></Field>
           </>}
@@ -231,12 +240,20 @@ function AuthScreen() {
 }
 
 /* ===== 대시보드 ===== */
-function Dashboard({ profile, labels }) {
-  const [activeRole, setActiveRole] = useState("ROLE_1");
+function Dashboard({ profile, labelRows, onLabelsChanged }) {
+  const ROLE_KEYS = useMemo(() => labelRows.map(l => l.role_key), [labelRows]);
+  const ROLES = useMemo(() => {
+    const out = {};
+    labelRows.forEach(l => out[l.role_key] = { label: l.display_name, metricLabel: l.metric_label, metricType: l.metric_type });
+    return out;
+  }, [labelRows]);
+
+  const [activeRole, setActiveRole] = useState(null);
   const [entries, setEntries] = useState([]);
   const [detailOwner, setDetailOwner] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [view, setView] = useState("top3");
   const [fetchError, setFetchError] = useState("");
   const [ownerNames, setOwnerNames] = useState({});
@@ -244,17 +261,15 @@ function Dashboard({ profile, labels }) {
 
   const isAdmin = profile.role === "관리자";
 
-  const ROLES = useMemo(() => {
-    const out = {};
-    ROLE_KEYS.forEach(k => out[k] = {
-      label: labels?.[k]?.display_name || k,
-      metricLabel: labels?.[k]?.metric_label || k,
-      metricType: ROLE_METRIC_TYPE[k],
-    });
-    return out;
-  }, [labels]);
+  // 카테고리 목록이 바뀌면(첫 로드, 총관리자 추가/삭제 포함) 선택된 탭을 안전하게 보정
+  useEffect(() => {
+    if (ROLE_KEYS.length === 0) { setActiveRole(null); return; }
+    if (!activeRole || !ROLE_KEYS.includes(activeRole)) setActiveRole(ROLE_KEYS[0]);
+  }, [ROLE_KEYS]);
+
 
   useEffect(() => {
+    if (!activeRole) return;
     (async () => {
       setFetchError("");
       const { data, error } = await supabase.from("entries").select("*").eq("role", activeRole).order("created_at", { ascending: true });
@@ -294,15 +309,16 @@ function Dashboard({ profile, labels }) {
 
   return (
     <div style={{background:`linear-gradient(180deg, ${C.bg} 0%, #F4EEFF 100%)`,minHeight:"100vh",fontFamily:FONT_BODY,color:C.text}}>
-      <div style={{background:`linear-gradient(135deg, ${C.ink} 0%, #4A2F5C 100%)`}} className="px-5 pt-5 pb-0 relative overflow-hidden">
-        <div style={{background:`linear-gradient(90deg, ${C.amber}, ${C.steel}, ${C.copper}, ${C.amber})`}} className="absolute top-0 left-0 right-0 h-1.5" />
-        <div className="flex items-center justify-between max-w-3xl mx-auto pb-5">
+      <MarqueeBar />
+
+      <div style={{background:`linear-gradient(135deg, ${C.ink} 0%, #4A2F5C 100%)`}} className="px-5 pt-4 pb-4">
+        <div className="flex items-center justify-between max-w-3xl mx-auto">
           <div className="flex items-center gap-2.5">
             <LogoMark />
             <div>
-              <div style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-base leading-none">실적 랭킹</div>
+              <div style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-base leading-none">누가 왕이 될 상인가</div>
               <div style={{color:"#C4B3D6"}} className="text-[11px] mt-1">
-                {isAdmin ? "총관리자" : `${ROLES[profile.role]?.label} · ${maskName(profile.name)}`}
+                {isAdmin ? "총관리자" : `${ROLES[profile.role]?.label||""} · ${maskName(profile.name)}`}
               </div>
             </div>
           </div>
@@ -312,50 +328,79 @@ function Dashboard({ profile, labels }) {
             <button onClick={logout} style={{color:"#C4B3D6",border:`1px solid ${C.inkLine}`}} className="text-xs px-3 py-2 rounded-full">로그아웃</button>
           </div>
         </div>
-        <div className="max-w-3xl mx-auto flex gap-6">
-          {ROLE_KEYS.map(r => (
-            <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}} className="pb-3 text-[13px] font-bold"
-              style={{color:activeRole===r?"#fff":"#B8A3CC", borderBottom:activeRole===r?`2px solid ${C.amber}`:"2px solid transparent"}}>{ROLES[r].label}</button>
-          ))}
-        </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-5 py-6">
-        {!isAdmin && (
-          <div style={{background:C.tealSoft,border:`1px solid ${C.teal}22`}} className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
-            <span>🔒</span>
-            <span style={{color:C.ink}} className="text-xs">본인이 등록한 기록만 상세 조회할 수 있어요. 다른 사람의 상세 기록은 총관리자만 볼 수 있습니다.</span>
+      <div className="max-w-3xl mx-auto px-5 -mt-1 pb-6">
+        {/* 히어로 카드: 참고 사이트의 윈도우-창 느낌 */}
+        <div style={{background:C.card, border:`1px solid ${C.border}`}} className="rounded-3xl overflow-hidden mt-4 mb-6">
+          <div style={{background:`repeating-linear-gradient(135deg, ${C.amberSoft}, ${C.amberSoft} 10px, ${C.card} 10px, ${C.card} 20px)`}} className="h-9 flex items-center px-4 gap-1.5">
+            <span style={{background:C.amber}} className="w-2.5 h-2.5 rounded-full" />
+            <span style={{background:C.steel}} className="w-2.5 h-2.5 rounded-full" />
+            <span style={{background:C.copper}} className="w-2.5 h-2.5 rounded-full" />
           </div>
-        )}
-        {fetchError && <div style={{background:"#FDEDED",color:C.danger}} className="rounded-xl px-4 py-3 mb-5 text-xs">{fetchError}</div>}
+          <div className="px-6 pt-6 pb-5 text-center">
+            <h1 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-3xl leading-tight mb-2">누가 왕이 될 상인가</h1>
+            <p style={{color:C.sub}} className="text-[13px] mb-5">역할별로 실적을 등록하고, 실시간 순위로 확인해요.</p>
 
-        <div className="flex items-center justify-between mb-1.5">
-          <div style={{color:C.teal,fontFamily:FONT_DISPLAY}} className="text-[11px] font-bold tracking-wide">{ROLES[activeRole].label.toUpperCase()} · 2026.07</div>
-          <div style={{background:C.card,border:`1px solid ${C.border}`}} className="flex rounded-full overflow-hidden p-0.5">
-            <button onClick={()=>setView("top3")} className="text-[11px] font-bold px-3 py-1.5 rounded-full" style={{background:view==="top3"?C.ink:"transparent",color:view==="top3"?"#fff":C.sub}}>TOP3</button>
-            <button onClick={()=>setView("all")} className="text-[11px] font-bold px-3 py-1.5 rounded-full" style={{background:view==="all"?C.ink:"transparent",color:view==="all"?"#fff":C.sub}}>전체 순위</button>
+            {ROLE_KEYS.length === 0 ? (
+              <EmptyState text={isAdmin ? "아직 카테고리가 없어요. 아래 버튼으로 추가해보세요." : "아직 등록된 카테고리가 없어요. 총관리자에게 문의해주세요."} />
+            ) : (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {ROLE_KEYS.map((r,i) => {
+                  const tone = [C.amber, C.steel, C.copper, C.teal][i % 4];
+                  const toneSoft = [C.amberSoft, C.steelSoft, C.copperSoft, C.tealSoft][i % 4];
+                  const active = activeRole === r;
+                  return (
+                    <button key={r} onClick={()=>{setActiveRole(r);setDetailOwner(null);}}
+                      style={{background:active?tone:toneSoft, color:active?"#fff":C.ink}}
+                      className="text-[13px] font-bold px-4 py-2 rounded-full">{ROLES[r].label}</button>
+                  );
+                })}
+              </div>
+            )}
+            {isAdmin && (
+              <button onClick={()=>setShowCategoryManager(true)} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-bold px-3 py-1.5 rounded-full mt-4">⚙ 카테고리 관리</button>
+            )}
           </div>
         </div>
-        <h1 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-2xl mb-5">
-          {ROLES[activeRole].metricLabel} {view==="top3" ? `TOP ${Math.min(3,top3.length)}` : `전체 ${ranking.length}명`}
-        </h1>
 
-        {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
+        {activeRole && ROLES[activeRole] && <>
+          {!isAdmin && (
+            <div style={{background:C.tealSoft,border:`1px solid ${C.teal}22`}} className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
+              <span>🔒</span>
+              <span style={{color:C.ink}} className="text-xs">본인이 등록한 기록만 상세 조회할 수 있어요. 다른 사람의 상세 기록은 총관리자만 볼 수 있습니다.</span>
+            </div>
+          )}
+          {fetchError && <div style={{background:"#FDEDED",color:C.danger}} className="rounded-xl px-4 py-3 mb-5 text-xs">{fetchError}</div>}
 
-        {view==="top3" && ranking.length>0 && <>
-          <div className="flex flex-col gap-2.5 mb-7">
-            {top3.map((row,i)=>(
-              <ScoreRow key={row.key} rank={i+1} row={row} name={maskName(displayName(row))}
-                metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
-                big={i===0} onClick={()=>setDetailOwner(row.key)} />
-            ))}
+          <div className="flex items-center justify-between mb-1.5">
+            <div style={{color:C.teal,fontFamily:FONT_DISPLAY}} className="text-[11px] font-bold tracking-wide">{ROLES[activeRole].label.toUpperCase()} · 2026.07</div>
+            <div style={{background:C.card,border:`1px solid ${C.border}`}} className="flex rounded-full overflow-hidden p-0.5">
+              <button onClick={()=>setView("top3")} className="text-[11px] font-bold px-3 py-1.5 rounded-full" style={{background:view==="top3"?C.ink:"transparent",color:view==="top3"?"#fff":C.sub}}>TOP3</button>
+              <button onClick={()=>setView("all")} className="text-[11px] font-bold px-3 py-1.5 rounded-full" style={{background:view==="all"?C.ink:"transparent",color:view==="all"?"#fff":C.sub}}>전체 순위</button>
+            </div>
           </div>
-          {rest.length>0 && <>
-            <h2 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xs font-bold mb-3 tracking-wide">4 – {ranking.length}위</h2>
-            <RankList rows={rest} startRank={4} displayName={displayName} onSelect={setDetailOwner} maxValue={top3[0].total || 1} />
+          <h2 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-2xl mb-5">
+            {ROLES[activeRole].metricLabel} {view==="top3" ? `TOP ${Math.min(3,top3.length)}` : `전체 ${ranking.length}명`}
+          </h2>
+
+          {ranking.length===0 && <EmptyState text={`아직 ${ROLES[activeRole].label} 등록 기록이 없어요.`} />}
+
+          {view==="top3" && ranking.length>0 && <>
+            <div className="flex flex-col gap-2.5 mb-7">
+              {top3.map((row,i)=>(
+                <ScoreRow key={row.key} rank={i+1} row={row} name={maskName(displayName(row))}
+                  metricLabel={ROLES[activeRole].metricLabel} maxValue={top3[0].total || 1}
+                  big={i===0} onClick={()=>setDetailOwner(row.key)} />
+              ))}
+            </div>
+            {rest.length>0 && <>
+              <h3 style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xs font-bold mb-3 tracking-wide">4 – {ranking.length}위</h3>
+              <RankList rows={rest} startRank={4} displayName={displayName} onSelect={setDetailOwner} maxValue={top3[0].total || 1} />
+            </>}
           </>}
+          {view==="all" && ranking.length>0 && <RankList rows={ranking} startRank={1} displayName={displayName} onSelect={setDetailOwner} highlightTop3 maxValue={ranking[0].total || 1} />}
         </>}
-        {view==="all" && ranking.length>0 && <RankList rows={ranking} startRank={1} displayName={displayName} onSelect={setDetailOwner} highlightTop3 maxValue={ranking[0].total || 1} />}
       </div>
 
       {detailOwner && (
@@ -363,7 +408,7 @@ function Dashboard({ profile, labels }) {
           owner={displayName(detailRow || {})}
           region={detailRow?.region}
           dept={detailRow?.dept}
-          roleLabel={ROLES[activeRole].label}
+          roleLabel={ROLES[activeRole]?.label}
           entries={detailEntries}
           allowed={canSeeDetail}
           isAdmin={isAdmin}
@@ -373,6 +418,19 @@ function Dashboard({ profile, labels }) {
       )}
       {showForm && <EntryForm profile={profile} roles={ROLES} onClose={()=>setShowForm(false)} onSubmitted={()=>setShowForm(false)} />}
       {showBulk && <BulkEntryForm roles={ROLES} onClose={()=>setShowBulk(false)} onSaved={()=>setRefreshKey(k=>k+1)} />}
+      {showCategoryManager && <CategoryManager labelRows={labelRows} onClose={()=>setShowCategoryManager(false)} onChanged={onLabelsChanged} />}
+    </div>
+  );
+}
+
+function MarqueeBar() {
+  const text = "👑 이달의 실적왕은 누구? · 지금 바로 확인하기 · 순위는 실시간으로 반영돼요 · 총관리자만 카테고리 추가/수정 가능 · ";
+  return (
+    <div style={{background:`linear-gradient(90deg, ${C.amber}, ${C.steel})`}} className="overflow-hidden whitespace-nowrap py-1.5">
+      <div className="inline-block" style={{animation:"marquee 22s linear infinite"}}>
+        <span style={{color:"#fff",fontFamily:FONT_DISPLAY}} className="text-[12px] mx-2">{text.repeat(4)}</span>
+      </div>
+      <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
   );
 }
@@ -652,6 +710,105 @@ function BulkEntryForm({ roles, onClose, onSaved }) {
             <button onClick={save} disabled={busy} style={{background:C.emerald}} className="text-white font-bold py-3 rounded-xl mt-3 w-full">{busy?"저장 중...":`${rows.length}건 저장하기`}</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CategoryManager({ labelRows, onClose, onChanged }) {
+  const [rows, setRows] = useState(labelRows);
+  const [busyKey, setBusyKey] = useState(null);
+  const [newName, setNewName] = useState("");
+  const [newMetric, setNewMetric] = useState("");
+  const [newType, setNewType] = useState("count");
+  const [msg, setMsg] = useState("");
+
+  const update = (key, field, value) => {
+    setRows(prev => prev.map(r => r.role_key === key ? { ...r, [field]: value } : r));
+  };
+
+  const saveRow = async (row) => {
+    setBusyKey(row.role_key); setMsg("");
+    const { error } = await supabase.from("labels")
+      .update({ display_name: row.display_name, metric_label: row.metric_label, metric_type: row.metric_type })
+      .eq("role_key", row.role_key);
+    setBusyKey(null);
+    if (error) { setMsg("저장 실패: " + error.message); return; }
+    onChanged();
+  };
+
+  const deleteRow = async (key) => {
+    if (!window.confirm("이 카테고리를 삭제할까요? 등록된 실적 데이터는 남아있지만, 화면에 탭이 사라져요.")) return;
+    setBusyKey(key); setMsg("");
+    const { error } = await supabase.from("labels").delete().eq("role_key", key);
+    setBusyKey(null);
+    if (error) { setMsg("삭제 실패: " + error.message); return; }
+    setRows(prev => prev.filter(r => r.role_key !== key));
+    onChanged();
+  };
+
+  const addCategory = async () => {
+    if (!newName || !newMetric) { setMsg("이름과 지표명을 입력해주세요."); return; }
+    const nums = rows.map(r => parseInt((r.role_key.match(/\d+/)||["0"])[0], 10));
+    const nextNum = (nums.length ? Math.max(...nums) : 0) + 1;
+    const role_key = `ROLE_${nextNum}`;
+    const sort_order = rows.length ? Math.max(...rows.map(r=>r.sort_order||0)) + 1 : 1;
+    setBusyKey("__new__"); setMsg("");
+    const { error } = await supabase.from("labels").insert({ role_key, display_name: newName, metric_label: newMetric, metric_type: newType, sort_order });
+    setBusyKey(null);
+    if (error) { setMsg("추가 실패: " + error.message); return; }
+    setNewName(""); setNewMetric("");
+    onChanged();
+    const { data } = await supabase.from("labels").select("*").order("sort_order", { ascending: true });
+    setRows(data || []);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
+      <div style={{background:C.card}} className="w-full max-w-lg rounded-t-3xl md:rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-xl">카테고리 관리</div>
+          <button onClick={onClose}>✕</button>
+        </div>
+        <p style={{color:C.sub}} className="text-xs mb-4">여기서 수정하면 모든 직원의 화면에 바로 반영돼요.</p>
+
+        <div className="flex flex-col gap-3 mb-5">
+          {rows.map(row => (
+            <div key={row.role_key} style={{border:`1px solid ${C.border}`}} className="rounded-2xl p-4">
+              <div style={{color:C.sub}} className="text-[10px] font-bold mb-2">{row.role_key}</div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <Field label="탭 이름"><input value={row.display_name} onChange={e=>update(row.role_key,"display_name",e.target.value)} style={inputStyle} /></Field>
+                <Field label="지표 이름"><input value={row.metric_label} onChange={e=>update(row.role_key,"metric_label",e.target.value)} style={inputStyle} /></Field>
+              </div>
+              <Field label="집계 방식">
+                <select value={row.metric_type} onChange={e=>update(row.role_key,"metric_type",e.target.value)} style={inputStyle}>
+                  <option value="count">등록 1건 = 1건씩 자동 합산</option>
+                  <option value="manual">숫자 직접 입력</option>
+                </select>
+              </Field>
+              <div className="flex gap-2 mt-3">
+                <button onClick={()=>saveRow(row)} disabled={busyKey===row.role_key} style={{background:C.amber,color:C.ink}} className="flex-1 text-xs font-bold py-2 rounded-full">저장</button>
+                <button onClick={()=>deleteRow(row.role_key)} disabled={busyKey===row.role_key} style={{color:C.danger,border:`1px solid ${C.danger}55`}} className="px-4 text-xs font-bold py-2 rounded-full">삭제</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{border:`1px dashed ${C.border}`}} className="rounded-2xl p-4">
+          <div style={{color:C.ink,fontFamily:FONT_DISPLAY}} className="text-sm mb-3">＋ 새 카테고리 추가</div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <Field label="탭 이름"><input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="예: 계약_신입" style={inputStyle} /></Field>
+            <Field label="지표 이름"><input value={newMetric} onChange={e=>setNewMetric(e.target.value)} placeholder="예: 계약5" style={inputStyle} /></Field>
+          </div>
+          <Field label="집계 방식">
+            <select value={newType} onChange={e=>setNewType(e.target.value)} style={inputStyle}>
+              <option value="count">등록 1건 = 1건씩 자동 합산</option>
+              <option value="manual">숫자 직접 입력</option>
+            </select>
+          </Field>
+          {msg && <div style={{color: msg.includes("실패")?C.danger:C.teal}} className="text-xs font-semibold mt-2">{msg}</div>}
+          <button onClick={addCategory} disabled={busyKey==="__new__"} style={{background:C.ink}} className="w-full text-white text-sm font-bold py-2.5 rounded-full mt-3">카테고리 추가</button>
+        </div>
       </div>
     </div>
   );
