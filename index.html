@@ -513,10 +513,10 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
                       <div className="rankTag" style={{bottom:"40%"}}>
                         <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span>
                       </div>
-                      <div className="rankName" style={{bottom:"23%", color:C.text, fontFamily:"'Nanum Myeongjo', serif", fontWeight:800, fontSize: rankNum===1?34:20, textShadow:"0 2px 6px #00000099"}}>
+                      <div className="rankName" style={{bottom:"23%", color:C.text, fontFamily:"'Nanum Myeongjo', serif", fontWeight:800, fontSize: rankNum===1?36:26, textShadow:"0 2px 6px #00000099"}}>
                         {maskName(displayName(row))}
                       </div>
-                      <div className="rankScore" style={{bottom:"7%", color:C.goldBright, fontFamily:FONT_DISPLAY, fontSize: rankNum===1?42:26, textShadow:"0 2px 8px #00000099"}}>
+                      <div className="rankScore" style={{bottom:"7%", color:C.goldBright, fontFamily:FONT_DISPLAY, fontSize: rankNum===1?44:32, textShadow:"0 2px 8px #00000099"}}>
                         {row.total}<span style={{color:C.sub,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,marginLeft:6}}>{ROLES[activeRole].metricLabel}</span>
                       </div>
                     </div>
