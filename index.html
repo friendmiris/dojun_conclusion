@@ -108,9 +108,10 @@ const inputStyle = { width: "100%", border: `1px solid ${C.amberLine}55`, border
 function Field({ label, children }) {
   return <div><div style={{ color: C.sub }} className="text-xs font-semibold mb-1">{label}</div>{children}</div>;
 }
-function RegionTag({ region }) {
+function RegionTag({ region, size }) {
   const c = colorForKey(region);
-  return <span style={{ background: c+"1A", color: c }} className="text-[11px] font-bold px-2.5 py-0.5 rounded-full">{regionLabel(region)}</span>;
+  const fontSize = size || 11;
+  return <span style={{ background: c+"1A", color: c, fontSize, padding: size?"3px 10px":"2px 10px" }} className="font-bold rounded-full">{regionLabel(region)}</span>;
 }
 function EmptyState({ text }) {
   return <div style={{ border: `1px dashed ${C.border}`, color: C.sub }} className="rounded-xl py-8 text-center text-sm">{text}</div>;
@@ -511,7 +512,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
                           }} />
                       )}
                       <div className="rankTag" style={{bottom:"46%"}}>
-                        <RegionTag region={row.region} /><span style={{color:C.sub,fontSize: rankNum===1?18:15}} className="font-semibold">{deptLabel(row.dept)}</span>
+                        <RegionTag region={row.region} size={rankNum===1?18:15} /><span style={{color:C.sub,fontSize: rankNum===1?18:15}} className="font-semibold">{deptLabel(row.dept)}</span>
                       </div>
                       <div className="rankName" style={{bottom:"22%", color:C.text, fontFamily:"'Nanum Myeongjo', serif", fontWeight:800, fontSize: rankNum===1?52:36, textShadow:"0 2px 6px #00000099"}}>
                         {maskName(displayName(row))}
