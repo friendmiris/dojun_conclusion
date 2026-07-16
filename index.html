@@ -336,6 +336,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
   const [showTextManager, setShowTextManager] = useState(false);
 
   const [showRegionDeptManager, setShowRegionDeptManager] = useState(false);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [view, setView] = useState("top3");
   const [fetchError, setFetchError] = useState("");
   const [ownerProfiles, setOwnerProfiles] = useState({});
@@ -364,7 +365,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
     (async () => {
       const ids = [...new Set(entries.map(e => e.owner_id).filter(Boolean))];
       if (ids.length === 0) { setOwnerProfiles({}); return; }
-      const { data } = await supabase.from("profiles").select("id, name, region, dept").in("id", ids);
+      const { data } = await supabase.from("profiles").select("id, name, region, dept, photo_url").in("id", ids);
       const map = {};
       (data||[]).forEach(p => map[p.id] = p);
       setOwnerProfiles(map);
@@ -379,6 +380,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
       if (!grouped[key]) grouped[key] = {
         key, owner_id: e.owner_id, owner_name: e.owner_name,
         region: p?.region || e.region, dept: p?.dept || e.dept, total: 0,
+        photoUrl: p?.photo_url || null,
       };
       if (!e.is_duplicate) grouped[key].total += e.metric; // 중복 건은 점수에서 제외
     });
@@ -416,6 +418,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
           </div>
           <div className="flex items-center gap-2">
             {!isAdmin && <button onClick={()=>setShowForm(true)} style={{background:`linear-gradient(135deg, ${C.goldBright}, ${C.amber})`,color:C.ink,border:`1px solid ${C.amberLine}`}} className="flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-full">＋ 실적 등록</button>}
+            {!isAdmin && <button onClick={()=>setShowPhotoUpload(true)} style={{color:C.sub,border:`1px solid ${C.amberLine}55`,background:"#00000044"}} className="text-xs px-3 py-2 rounded-full">📷 내 사진</button>}
             {isAdmin && <button onClick={()=>setShowBulk(true)} style={{background:`linear-gradient(135deg, ${C.goldBright}, ${C.amber})`,color:C.ink,border:`1px solid ${C.amberLine}`}} className="flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-full">📋 일괄 등록</button>}
             <button onClick={logout} style={{color:C.sub,border:`1px solid ${C.amberLine}55`,background:"#00000044"}} className="text-xs px-3 py-2 rounded-full">로그아웃</button>
           </div>
@@ -494,6 +497,23 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
                   <div key={row.key} className={`rankCard rank${rankNum}`} onClick={()=>setDetailOwner(row.key)} style={{cursor:"pointer"}}>
                     <img className="rankImage" src={imgFile} alt={`${rankNum}등`} />
                     <div className="rankOverlay">
+                      {row.photoUrl ? (
+                        <img src={row.photoUrl} alt={maskName(displayName(row))}
+                          style={{
+                            position:"absolute", top:"12%", left:"50%", transform:"translateX(-50%)",
+                            width: rankNum===1?"22%":"18%", aspectRatio:"1/1", borderRadius:"9999px",
+                            objectFit:"cover", border:`3px solid ${C.goldBright}`, boxShadow:"0 4px 12px #00000088",
+                          }} />
+                      ) : (
+                        <div style={{
+                            position:"absolute", top:"12%", left:"50%", transform:"translateX(-50%)",
+                            width: rankNum===1?"22%":"18%", aspectRatio:"1/1", borderRadius:"9999px",
+                            background:"#0A0A0A", border:`3px solid ${C.goldBright}`, boxShadow:"0 4px 12px #00000088",
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                          }}>
+                          <span style={{color:"#fff", fontFamily:FONT_DISPLAY, fontSize: rankNum===1?26:20}}>?</span>
+                        </div>
+                      )}
                       <div className="rankTag" style={{bottom:"40%"}}>
                         <RegionTag region={row.region} /><span style={{color:C.sub}} className="text-[11px] font-semibold">{deptLabel(row.dept)}</span>
                       </div>
@@ -541,6 +561,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
       {showTextManager && <SiteTextManager siteTexts={siteTexts} onClose={()=>setShowTextManager(false)} onChanged={onTextsChanged} />}
 
       {showRegionDeptManager && <RegionDeptManager regionRows={regionRows} deptRows={deptRows} onClose={()=>setShowRegionDeptManager(false)} onRegionsChanged={onRegionsChanged} onDeptsChanged={onDeptsChanged} />}
+      {showPhotoUpload && <PhotoUploadModal profile={profile} onClose={()=>setShowPhotoUpload(false)} onChanged={()=>setRefreshKey(k=>k+1)} />}
     </div>
   );
 }
@@ -703,6 +724,7 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
   const [pDept, setPDept] = useState(dept);
   const [pBusy, setPBusy] = useState(false);
   const [pMsg, setPMsg] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const startEdit = (e) => {
     setEditingId(e.id);
@@ -743,6 +765,38 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
     if (error) { setPMsg("삭제 실패: " + error.message); return; }
     onChanged();
     onClose();
+  };
+
+  const uploadPhotoForEmployee = async (file) => {
+    if (!file) return;
+    setPhotoBusy(true); setPMsg("");
+    const ext = file.name.split(".").pop();
+    await supabase.storage.from("profile-photos").remove(
+      ["jpg","jpeg","png","webp","gif"].filter(e=>e!==ext).map(e => `${ownerId}/photo.${e}`)
+    );
+    const path = `${ownerId}/photo.${ext}`;
+    const { error: upErr } = await supabase.storage.from("profile-photos").upload(path, file, { upsert: true });
+    if (upErr) { setPhotoBusy(false); setPMsg("업로드 실패: " + upErr.message); return; }
+    const { data: pub } = supabase.storage.from("profile-photos").getPublicUrl(path);
+    const cacheBusted = `${pub.publicUrl}?t=${Date.now()}`;
+    const { error: dbErr } = await supabase.from("profiles").update({ photo_url: cacheBusted }).eq("id", ownerId);
+    setPhotoBusy(false);
+    if (dbErr) { setPMsg("저장 실패: " + dbErr.message); return; }
+    setPMsg("✅ 사진 등록 완료!");
+    onChanged();
+  };
+
+  const removePhotoForEmployee = async () => {
+    if (!window.confirm("이 직원의 사진을 지울까요?")) return;
+    setPhotoBusy(true); setPMsg("");
+    await supabase.storage.from("profile-photos").remove(
+      ["jpg","jpeg","png","webp","gif"].map(ext => `${ownerId}/photo.${ext}`)
+    );
+    const { error } = await supabase.from("profiles").update({ photo_url: null }).eq("id", ownerId);
+    setPhotoBusy(false);
+    if (error) { setPMsg("삭제 실패: " + error.message); return; }
+    setPMsg("사진을 지웠어요.");
+    onChanged();
   };
 
   // 프로필(로그인 계정)이 없는 사람 - 일괄등록으로만 만들어진 "가짜 계정" 전체 삭제
@@ -795,6 +849,11 @@ function DetailModal({ owner, ownerId, roleKey, region, dept, roleLabel, roles, 
                     <button onClick={saveProfile} disabled={pBusy} style={{background:C.amber,color:C.ink}} className="flex-1 text-xs font-bold py-1.5 rounded-lg">저장</button>
                     <button onClick={()=>setEditingProfile(false)} style={{background:C.bg,color:C.sub}} className="flex-1 text-xs font-bold py-1.5 rounded-lg">취소</button>
                     <button onClick={deleteProfile} disabled={pBusy} style={{color:C.danger}} className="text-xs font-bold px-2">프로필 삭제</button>
+                  </div>
+                  <div style={{borderTop:`1px solid ${C.border}`}} className="pt-2 mt-1">
+                    <div style={{color:C.sub}} className="text-[11px] font-semibold mb-1">순위 카드용 사진 (1~3등일 때 표시)</div>
+                    <input type="file" accept="image/*" onChange={e=>uploadPhotoForEmployee(e.target.files[0])} disabled={photoBusy} />
+                    <button onClick={removePhotoForEmployee} disabled={photoBusy} style={{color:C.danger}} className="text-[11px] font-bold ml-2">사진 삭제</button>
                   </div>
                 </div>
               )}
@@ -1333,6 +1392,70 @@ function CategoryManager({ labelRows, onClose, onChanged }) {
           </Field>
           {msg && <div style={{color: msg.includes("실패")?C.danger:C.teal}} className="text-xs font-semibold mt-2">{msg}</div>}
           <button onClick={addCategory} disabled={busyKey==="__new__"} style={{background:C.ink}} className="w-full text-white text-sm font-bold py-2.5 rounded-full mt-3">카테고리 추가</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PhotoUploadModal({ profile, onClose, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [preview, setPreview] = useState(profile.photo_url || null);
+
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true); setMsg("");
+    const ext = file.name.split(".").pop();
+    await supabase.storage.from("profile-photos").remove(
+      ["jpg","jpeg","png","webp","gif"].filter(e=>e!==ext).map(e => `${profile.id}/photo.${e}`)
+    );
+    const path = `${profile.id}/photo.${ext}`;
+    const { error: upErr } = await supabase.storage.from("profile-photos").upload(path, file, { upsert: true });
+    if (upErr) { setBusy(false); setMsg("업로드 실패: " + upErr.message); return; }
+    const { data: pub } = supabase.storage.from("profile-photos").getPublicUrl(path);
+    const cacheBusted = `${pub.publicUrl}?t=${Date.now()}`;
+    const { error: dbErr } = await supabase.from("profiles").update({ photo_url: cacheBusted }).eq("id", profile.id);
+    setBusy(false);
+    if (dbErr) { setMsg("저장 실패: " + dbErr.message); return; }
+    setPreview(cacheBusted);
+    setMsg("✅ 등록 완료! 1~3등 하면 이 사진이 보여요.");
+    onChanged();
+  };
+
+  const remove = async () => {
+    if (!window.confirm("등록한 사진을 지울까요?")) return;
+    setBusy(true); setMsg("");
+    await supabase.storage.from("profile-photos").remove(
+      ["jpg","jpeg","png","webp","gif"].map(ext => `${profile.id}/photo.${ext}`)
+    );
+    const { error } = await supabase.from("profiles").update({ photo_url: null }).eq("id", profile.id);
+    setBusy(false);
+    if (error) { setMsg("삭제 실패: " + error.message); return; }
+    setPreview(null);
+    setMsg("사진을 지웠어요.");
+    onChanged();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{background:"#00000055"}}>
+      <div style={{background:C.card, border:`1px solid ${C.amberLine}55`}} className="w-full max-w-sm rounded-t-3xl md:rounded-3xl p-6">
+        <div className="flex items-center justify-between mb-2">
+          <div style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-xl">내 사진 등록</div>
+          <button onClick={onClose} style={{color:C.sub}}>✕</button>
+        </div>
+        <p style={{color:C.sub}} className="text-xs mb-4">본인 동의하에, 1~3등 했을 때 순위 카드에 보일 사진이에요. 다른 사람은 못 바꿔요. 안 올리면 지금처럼 실루엣으로 나와요.</p>
+
+        {preview && (
+          <div className="flex justify-center mb-4">
+            <img src={preview} alt="미리보기" style={{width:96, height:96, borderRadius:"9999px", objectFit:"cover", border:`3px solid ${C.goldBright}`}} />
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <input type="file" accept="image/*" onChange={e=>upload(e.target.files[0])} disabled={busy} />
+          {msg && <div style={{color: msg.includes("실패")?C.danger:C.teal}} className="text-xs font-semibold">{msg}</div>}
+          {preview && <button onClick={remove} disabled={busy} style={{color:C.danger,border:`1px solid ${C.danger}55`}} className="text-xs font-bold py-2 rounded-full">사진 삭제하고 실루엣으로 되돌리기</button>}
         </div>
       </div>
     </div>
