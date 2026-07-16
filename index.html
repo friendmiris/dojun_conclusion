@@ -483,6 +483,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
             </div>
           </div>
           <h2 style={{color:C.text,fontFamily:FONT_DISPLAY}} className="text-2xl mb-5">
+            {view==="top3" && <img src="top3-title.png" alt="" style={{height:28, display:"inline-block", verticalAlign:"middle", marginRight:8}} />}
             {ROLES[activeRole].metricLabel} {view==="top3" ? `TOP ${Math.min(3,top3.length)}` : `전체 ${ranking.length}명`}
           </h2>
 
