@@ -489,7 +489,7 @@ function Dashboard({ profile, labelRows, onLabelsChanged, siteTexts, onTextsChan
             <div className="rank3Row pt-3">
               {top3.map((row,i)=>{
                 const rankNum = i+1;
-                const imgFile = rankNum===1 ? "rank1-card.png" : rankNum===2 ? "rank2-card.png" : "rank3-card.png";
+                const imgFile = rankNum===1 ? (siteTexts.rank1_card_url || "rank1-card.png") : rankNum===2 ? (siteTexts.rank2_card_url || "rank2-card.png") : (siteTexts.rank3_card_url || "rank3-card.png");
                 return (
                   <div key={row.key} className={`rankCard rank${rankNum}`} onClick={()=>setDetailOwner(row.key)} style={{cursor:"pointer"}}>
                     <img className="rankImage" src={imgFile} alt={`${rankNum}등`} />
@@ -1105,12 +1105,29 @@ function SiteTextManager({ siteTexts, onClose, onChanged }) {
               </div>
               {uploadingKey==="bg_image_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
             </Field>
-            <Field label="TOP3 카드 틀 이미지 (PC 화면용, 1280x264 권장)">
+            <div style={{color:C.sub,background:"#00000044",border:`1px solid ${C.border}`}} className="text-[11px] rounded-lg px-3 py-2 mb-1">
+              권장 비율 — 1등: 약 1.8:1 (예: 540x300px 이상) · 2등/3등: 약 2:1 (예: 600x300px 이상). 정확히 안 맞아도 자동으로 늘어나서 나오니 너무 세로로 긴 사진만 피해주세요.
+            </div>
+            <Field label="1등 카드 이미지">
               <div className="flex items-center gap-2">
-                <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "top3_frame_url")} disabled={uploadingKey==="top3_frame_url"} />
-                <button onClick={()=>resetPoster("top3_frame_url")} disabled={uploadingKey==="top3_frame_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
+                <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "rank1_card_url")} disabled={uploadingKey==="rank1_card_url"} />
+                <button onClick={()=>resetPoster("rank1_card_url")} disabled={uploadingKey==="rank1_card_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
               </div>
-              {uploadingKey==="top3_frame_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
+              {uploadingKey==="rank1_card_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
+            </Field>
+            <Field label="2등 카드 이미지">
+              <div className="flex items-center gap-2">
+                <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "rank2_card_url")} disabled={uploadingKey==="rank2_card_url"} />
+                <button onClick={()=>resetPoster("rank2_card_url")} disabled={uploadingKey==="rank2_card_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
+              </div>
+              {uploadingKey==="rank2_card_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
+            </Field>
+            <Field label="3등 카드 이미지">
+              <div className="flex items-center gap-2">
+                <input type="file" accept="image/*" onChange={e=>uploadPoster(e.target.files[0], "rank3_card_url")} disabled={uploadingKey==="rank3_card_url"} />
+                <button onClick={()=>resetPoster("rank3_card_url")} disabled={uploadingKey==="rank3_card_url"} style={{color:C.sub,border:`1px solid ${C.border}`}} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex-shrink-0">기본으로</button>
+              </div>
+              {uploadingKey==="rank3_card_url" && <div style={{color:C.sub}} className="text-[11px] mt-1">처리 중...</div>}
             </Field>
           </div>
         </div>
